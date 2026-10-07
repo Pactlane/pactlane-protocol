@@ -363,3 +363,102 @@ async fn metadata_keys_are_readable_as_typed_values() {
 
     db.drop_schema(&schema).await.unwrap();
 }
+
+#[tokio::test]
+async fn ingestion_restart_keeps_mapping_progress_separate() {
+    use superquery_store::IngestionStore;
+    let schema = unique_schema("ingest");
+    let Some(db) = try_db(&schema).await else {
+        return;
+    };
+    db.ensure_schema().await.unwrap();
+    let checkpoints = CheckpointStore::new(&schema).unwrap();
+    checkpoints.ensure_tables(&db).await.unwrap();
+    let journal = IngestionStore::new(&schema).unwrap();
+    journal.ensure_table(&db).await.unwrap();
+    let first = Header {
+        height: 10,
+        hash: "a".into(),
+        parent_hash: Some("parent".into()),
+        timestamp: None,
+    };
+    journal.commit(&db, &first).await.unwrap();
+    journal.commit(&db, &first).await.unwrap();
+    let next = Header {
+        height: 11,
+        hash: "b".into(),
+        parent_hash: Some("a".into()),
+        timestamp: None,
+    };
+    journal.commit(&db, &next).await.unwrap();
+    let resumed = IngestionStore::new(&schema).unwrap();
+    assert_eq!(resumed.load(&db).await.unwrap(), Some(next.clone()));
+    assert!(checkpoints.load(&db).await.unwrap().is_none());
+    let fork = Header {
+        height: 12,
+        hash: "fork".into(),
+        parent_hash: Some("wrong".into()),
+        timestamp: None,
+    };
+    assert!(journal.commit(&db, &fork).await.is_err());
+    assert_eq!(journal.load(&db).await.unwrap(), Some(next));
+    db.drop_schema(&schema).await.unwrap();
+}
+
+#[tokio::test]
+async fn project_identity_is_atomic_and_rejects_changed_inputs() {
+    let schema = unique_schema("identity");
+    let Some(db) = try_db(&schema).await else {
+        return;
+    };
+    db.ensure_schema().await.unwrap();
+    let metadata = MetadataStore::new(&schema).unwrap();
+    metadata.ensure_table(&db).await.unwrap();
+    let (a, b) = tokio::join!(
+        metadata.verify_project(&db, "project-a", "1", "hash-a", "1"),
+        metadata.verify_project(&db, "project-b", "137", "hash-b", "1"),
+    );
+    assert_ne!(a.is_ok(), b.is_ok());
+    let project = metadata.get(&db, keys::PROJECT_ID).await.unwrap().unwrap();
+    let chain = metadata.get(&db, keys::CHAIN_ID).await.unwrap().unwrap();
+    let fingerprint = metadata
+        .get(&db, keys::MANIFEST_HASH)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(matches!(
+        (project.as_str(), chain.as_str(), fingerprint.as_str()),
+        ("project-a", "1", "hash-a") | ("project-b", "137", "hash-b")
+    ));
+    assert!(metadata
+        .verify_project(&db, &project, &chain, "changed", "1")
+        .await
+        .is_err());
+    assert_eq!(
+        metadata
+            .get(&db, keys::MANIFEST_HASH)
+            .await
+            .unwrap()
+            .unwrap(),
+        fingerprint
+    );
+    db.drop_schema(&schema).await.unwrap();
+}
+
+#[tokio::test]
+async fn partial_checkpoint_is_an_error() {
+    let schema = unique_schema("partial");
+    let Some(db) = try_db(&schema).await else {
+        return;
+    };
+    db.ensure_schema().await.unwrap();
+    let checkpoints = CheckpointStore::new(&schema).unwrap();
+    checkpoints.ensure_tables(&db).await.unwrap();
+    MetadataStore::new(&schema)
+        .unwrap()
+        .set(&db, keys::INDEXED_HEIGHT, "12")
+        .await
+        .unwrap();
+    assert!(checkpoints.load(&db).await.is_err());
+    db.drop_schema(&schema).await.unwrap();
+}

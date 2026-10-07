@@ -179,7 +179,9 @@ fn input_starts_with_selector(input: &str, selector: &str) -> bool {
     if selector.is_empty() || input.len() < selector.len() {
         return false;
     }
-    input.get(..selector.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(selector))
+    input
+        .get(..selector.len())
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(selector))
 }
 
 #[cfg(test)]

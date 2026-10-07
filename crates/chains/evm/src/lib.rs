@@ -17,8 +17,7 @@
 //! - [`ChainAdapter::decode_events`](superquery_chain_api::ChainAdapter::decode_events)
 //!   on [`EvmAdapter`] — pairing logs with the transactions that emitted them.
 //!
-//! The RPC-backed methods return a clear error naming their milestone until phase
-//! B2 lands them.
+//! RPC calls use bounded timeouts and retries, with network verification on failover.
 //!
 //! Upstream analogue:
 //! [`subquery/subql-ethereum`](https://github.com/subquery/subql-ethereum).
@@ -31,6 +30,8 @@ pub use adapter::{EvmAdapter, EvmAdapterConfig, SharedEvmAdapter};
 pub use block::{EvmBlock, EvmEvent, EvmLog, EvmTransaction};
 pub use filter::{EvmLogFilter, EvmTransactionFilter, LogView, TopicFilter, TransactionView};
 
-mod rpc;
 mod decode;
 pub mod project;
+mod rpc;
+#[cfg(test)]
+mod rpc_tests;

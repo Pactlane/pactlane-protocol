@@ -141,7 +141,11 @@ impl RangePlan {
 
 /// The adapter resolves chain-specific fallback; zero is a valid finalized height.
 pub fn safe_head(latest: u64, finalized: u64, unfinalized: bool, _confirmations: u64) -> u64 {
-    if unfinalized { latest } else { finalized.min(latest) }
+    if unfinalized {
+        latest
+    } else {
+        finalized.min(latest)
+    }
 }
 
 #[cfg(test)]
@@ -253,8 +257,8 @@ mod tests {
         assert_eq!(safe_head(1_000, 900, true, 200), 1_000);
         // Otherwise it stops at the finalized height.
         assert_eq!(safe_head(1_000, 900, false, 200), 900);
-        // A chain reporting no finality falls back to a depth estimate.
-        assert_eq!(safe_head(1_000, 0, false, 200), 800);
+        // Finalized genesis stays at genesis; fallback belongs to the adapter.
+        assert_eq!(safe_head(1_000, 0, false, 200), 0);
         // Finality is never allowed to exceed the head.
         assert_eq!(safe_head(500, 900, false, 200), 500);
         // Depth deeper than the chain saturates at genesis.

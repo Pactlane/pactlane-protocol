@@ -55,7 +55,10 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn run(config: &NodeConfig, shutdown: Shutdown) -> anyhow::Result<()> {
-    anyhow::ensure!(config.ingest_only, "mapping execution is not yet available; use --ingest-only for finalized block ingestion");
+    anyhow::ensure!(
+        config.ingest_only,
+        "mapping execution is not yet available; use --ingest-only for finalized block ingestion"
+    );
     let context = tokio::select! {
         biased;
         _ = shutdown.recv() => return Ok(()),

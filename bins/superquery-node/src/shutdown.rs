@@ -10,13 +10,23 @@ pub struct Shutdown {
 
 impl Shutdown {
     /// Create an uncancelled signal.
-    pub fn new() -> Self { Self { token: CancellationToken::new() } }
+    pub fn new() -> Self {
+        Self {
+            token: CancellationToken::new(),
+        }
+    }
     /// Wait for cancellation.
-    pub async fn recv(&self) { self.token.cancelled().await; }
+    pub async fn recv(&self) {
+        self.token.cancelled().await;
+    }
     /// Request graceful shutdown.
-    pub fn trigger(&self) { self.token.cancel(); }
+    pub fn trigger(&self) {
+        self.token.cancel();
+    }
     /// Pass cancellation into the fetch loop.
-    pub fn token(&self) -> &CancellationToken { &self.token }
+    pub fn token(&self) -> &CancellationToken {
+        &self.token
+    }
 }
 
 impl Default for Shutdown {

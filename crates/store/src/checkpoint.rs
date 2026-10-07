@@ -73,20 +73,36 @@ impl CheckpointStore {
     /// The current checkpoint, or `None` on a fresh schema.
     pub async fn load(&self, db: &Database) -> Result<Option<Checkpoint>> {
         let sql = format!(
-            "SELECT key, value FROM \"{}\".\"_superquery_metadata\" WHERE key = ANY($1)", self.schema
+            "SELECT key, value FROM \"{}\".\"_superquery_metadata\" WHERE key = ANY($1)",
+            self.schema
         );
-        let keys = vec![keys::INDEXED_HEIGHT, keys::INDEXED_BLOCK_HASH, keys::FINALIZED_HEIGHT];
+        let keys = vec![
+            keys::INDEXED_HEIGHT,
+            keys::INDEXED_BLOCK_HASH,
+            keys::FINALIZED_HEIGHT,
+        ];
         let rows = db.query(&sql, &[&keys]).await?;
-        let values: std::collections::HashMap<String, String> = rows.iter()
-            .map(|r| (r.get(0), r.get(1))).collect();
-        if values.is_empty() { return Ok(None); }
-        let required = |key: &str| values.get(key).filter(|v| !v.is_empty())
-            .ok_or_else(|| StoreError::Decode(format!("incomplete checkpoint: missing {key}")));
+        let values: std::collections::HashMap<String, String> =
+            rows.iter().map(|r| (r.get(0), r.get(1))).collect();
+        if values.is_empty() {
+            return Ok(None);
+        }
+        let required = |key: &str| {
+            values
+                .get(key)
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| StoreError::Decode(format!("incomplete checkpoint: missing {key}")))
+        };
         let number = |key: &str| -> Result<u64> {
-            required(key)?.parse().map_err(|_| StoreError::Decode(format!("invalid checkpoint {key}")))
+            required(key)?
+                .parse()
+                .map_err(|_| StoreError::Decode(format!("invalid checkpoint {key}")))
         };
         Ok(Some(Checkpoint {
-            indexed: BlockPtr::new(number(keys::INDEXED_HEIGHT)?, required(keys::INDEXED_BLOCK_HASH)?.clone()),
+            indexed: BlockPtr::new(
+                number(keys::INDEXED_HEIGHT)?,
+                required(keys::INDEXED_BLOCK_HASH)?.clone(),
+            ),
             finalized_height: number(keys::FINALIZED_HEIGHT)?,
         }))
     }
@@ -165,7 +181,9 @@ impl CheckpointStore {
              WHERE height <= $1 AND height >= $2 ORDER BY height DESC",
             self.schema
         );
-        let rows = db.query(&sql, &[&sql_height(from)?, &sql_height(to)?]).await?;
+        let rows = db
+            .query(&sql, &[&sql_height(from)?, &sql_height(to)?])
+            .await?;
         rows.iter().map(row_to_stored_header).collect()
     }
 
@@ -216,14 +234,16 @@ impl StoredHeader {
 }
 
 pub(crate) fn sql_height(height: u64) -> Result<i64> {
-    i64::try_from(height).map_err(|_| StoreError::Decode(format!("height {height} exceeds PostgreSQL bigint")))
+    i64::try_from(height)
+        .map_err(|_| StoreError::Decode(format!("height {height} exceeds PostgreSQL bigint")))
 }
 
 fn row_to_stored_header(row: &tokio_postgres::Row) -> Result<StoredHeader> {
     let height: i64 = row.get("height");
     let state: String = row.get("finality_state");
     Ok(StoredHeader {
-        height: u64::try_from(height).map_err(|_| StoreError::Decode("negative stored block height".into()))?,
+        height: u64::try_from(height)
+            .map_err(|_| StoreError::Decode("negative stored block height".into()))?,
         hash: row.get("hash"),
         parent_hash: row.get("parent_hash"),
         finality: finality_from_str(&state),

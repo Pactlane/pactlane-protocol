@@ -33,27 +33,25 @@ It is one of three repositories:
 
 ## Status
 
-**Pre-alpha.** The workspace, the crate boundaries and the correctness-critical
-logic are in place and tested; the pipeline that connects them is not yet wired.
+**Pre-alpha — ingestion foundation implemented.** The node loads SDK manifests,
+fetches finalized EVM blocks and hash-bound logs, selects matching inputs, and
+persists a restartable header journal. Use `--ingest-only` explicitly.
 
 | Area | State |
 |---|---|
-| Workspace, crate seams, `ChainAdapter` | done |
-| Configuration + CLI, startup, graceful shutdown | done |
-| Store: schema generation, entities, metadata, checkpoints | done |
-| Fetch range planning, backpressure | done |
-| Ordered commit (out-of-order → in-order) | done |
-| Reorg detection, common-ancestor search | done |
-| EVM log/transaction filtering | done |
-| Mapping ABI v1 | specified |
-| EVM RPC ingestion | **not yet** — Milestone 4 |
-| Scheduler loop, worker pool | **not yet** — Milestones 5, 7 |
-| Wasmtime host functions | **not yet** — Milestone 9 |
-| Rewind execution, dynamic data sources | **not yet** — Milestones 11, 12 |
+| SDK manifest loading, version checks, project fingerprints | implemented |
+| HTTP EVM RPC, verified failover, bounded retries/timeouts | implemented |
+| Concurrent bounded fetch batches and ordered durable acknowledgement | implemented |
+| Header ingestion, canonical restart check, SIGINT/SIGTERM | implemented |
+| SDK event/function signature filters | implemented; selection only |
+| Entity store and mapping checkpoint primitives | existing foundation |
+| WASM handler execution and end-to-end entity indexing | pending |
+| Worker pool, rewind/replay, dynamic sources | pending |
+| Admin/metrics server, dictionary, additional chains | pending |
 
-Unimplemented seams return a clear error naming their milestone rather than
-failing obscurely. The roadmap is
-[`.claude/tasks/superquery-node-rust-scaffold.md`](.claude/tasks/superquery-node-rust-scaffold.md).
+Ingestion writes `_superquery_ingestion_blocks`. It never advances the mapping
+checkpoint or claims that handlers ran. This tranche is the planned first 30% of
+the roadmap, not a production-readiness percentage. See [the ingestion guide](docs/ingestion.md).
 
 ---
 
@@ -113,14 +111,14 @@ cargo test --workspace
 ## Running
 
 ```bash
-superquery-node \
+superquery-node --ingest-only \
   --project ./erc20-indexer/dist \
   --database-url "$DATABASE_URL" \
   --rpc-url https://eth-mainnet.example
 ```
 
-`--help` lists every flag. The three above are the spine; everything else has a
-default that lets that command work.
+`--help` lists every flag. RPC endpoints may also come from the SDK manifest. Without `--end-height`,
+the ingestion loop follows the finalized head until shutdown.
 
 Startup is fail-fast: the project path, database configuration, connectivity and
 RPC endpoints are all checked before a single block is fetched.

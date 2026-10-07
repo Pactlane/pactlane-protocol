@@ -59,11 +59,22 @@ impl EvmAdapter {
         let chain_name = well_known_chain_name(&config.chain_id)
             .unwrap_or("evm")
             .to_string();
-        Self { config, chain_name, rpc: tokio::sync::OnceCell::new() }
+        Self {
+            config,
+            chain_name,
+            rpc: tokio::sync::OnceCell::new(),
+        }
     }
 
-    async fn request(&self, method: &'static str, params: serde_json::Value) -> Result<serde_json::Value> {
-        let rpc = self.rpc.get_or_try_init(|| async { crate::rpc::RpcClient::new(&self.config) }).await?;
+    async fn request(
+        &self,
+        method: &'static str,
+        params: serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        let rpc = self
+            .rpc
+            .get_or_try_init(|| async { crate::rpc::RpcClient::new(&self.config) })
+            .await?;
         rpc.request(method, params).await
     }
 
@@ -129,38 +140,70 @@ impl ChainAdapter for EvmAdapter {
     }
 
     async fn validate_network(&self, expected: &str) -> Result<()> {
-        let actual = crate::rpc::quantity(&self.request("eth_chainId", serde_json::json!([])).await?)?;
+        let actual =
+            crate::rpc::quantity(&self.request("eth_chainId", serde_json::json!([])).await?)?;
         if expected.parse::<u64>().ok() != Some(actual) {
-            return Err(ChainError::ChainIdMismatch { expected: expected.into(), actual: actual.to_string() });
+            return Err(ChainError::ChainIdMismatch {
+                expected: expected.into(),
+                actual: actual.to_string(),
+            });
         }
         Ok(())
     }
 
     async fn latest_height(&self) -> Result<u64> {
-        crate::rpc::quantity(&self.request("eth_blockNumber", serde_json::json!([])).await?)
+        crate::rpc::quantity(
+            &self
+                .request("eth_blockNumber", serde_json::json!([]))
+                .await?,
+        )
     }
 
     async fn finalized_height(&self) -> Result<u64> {
-        match self.request("eth_getBlockByNumber", serde_json::json!(["finalized", false])).await {
+        match self
+            .request(
+                "eth_getBlockByNumber",
+                serde_json::json!(["finalized", false]),
+            )
+            .await
+        {
             Ok(value) if value.is_null() => Ok(0),
             Ok(value) => crate::rpc::quantity(&value["number"]),
-            Err(ChainError::Rpc { code: -32601 | -32602 }) => {
-                Ok(self.latest_height().await?.saturating_sub(self.config.finality_confirmations))
-            }
+            Err(ChainError::Rpc {
+                code: -32601 | -32602,
+            }) => Ok(self
+                .latest_height()
+                .await?
+                .saturating_sub(self.config.finality_confirmations)),
             Err(error) => Err(error),
         }
     }
 
     async fn fetch_block(&self, height: u64) -> Result<Self::FetchedBlock> {
-        let value = self.request("eth_getBlockByNumber", serde_json::json!([format!("0x{height:x}"), true])).await?;
+        let value = self
+            .request(
+                "eth_getBlockByNumber",
+                serde_json::json!([format!("0x{height:x}"), true]),
+            )
+            .await?;
         let header = crate::decode::header(&value, height)?;
-        let logs = self.request("eth_getLogs", serde_json::json!([{ "blockHash": header.hash }])).await?;
+        let logs = self
+            .request(
+                "eth_getLogs",
+                serde_json::json!([{ "blockHash": header.hash }]),
+            )
+            .await?;
         let block = crate::decode::block(&value, &logs, height)?;
         Ok(GenericBlock::new(header, block))
     }
 
     async fn header_at(&self, height: u64) -> Result<Header> {
-        let value = self.request("eth_getBlockByNumber", serde_json::json!([format!("0x{height:x}"), false])).await?;
+        let value = self
+            .request(
+                "eth_getBlockByNumber",
+                serde_json::json!([format!("0x{height:x}"), false]),
+            )
+            .await?;
         crate::decode::header(&value, height)
     }
 
@@ -339,11 +382,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rpc_backed_calls_report_their_milestone_rather_than_panicking() {
-        // Until phase B2 lands these must fail cleanly, so a premature run gives
-        // a readable message instead of a panic.
-        let err = adapter().latest_height().await.unwrap_err();
-        assert!(err.to_string().contains("Milestone 4"));
+    async fn invalid_rpc_configuration_fails_without_panicking() {
+        let invalid = EvmAdapter::new(EvmAdapterConfig::default());
+        let err = invalid.latest_height().await.unwrap_err();
+        assert!(err.to_string().contains("RPC requires endpoints"));
         assert!(!err.is_retryable());
     }
 }
