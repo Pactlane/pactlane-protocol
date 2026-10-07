@@ -1,5 +1,6 @@
 //! Loading policy around the SDK-owned manifest contract.
 use crate::{manifest, ProjectManifest};
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 
 /// A validated project and its local inputs.
@@ -9,6 +10,8 @@ pub struct LoadedProject {
     pub manifest: ProjectManifest,
     /// Canonical project directory.
     pub root: PathBuf,
+    /// Hash of the normalized manifest and exact schema/asset bytes.
+    pub fingerprint: String,
     /// GraphQL schema source.
     pub schema: String,
 }
@@ -57,12 +60,32 @@ impl LoadedProject {
         }
         let schema = String::from_utf8(read_input(&root, manifest.schema.file.as_std_path())?)
             .map_err(|_| "schema must be UTF-8".to_string())?;
+        let fingerprint = fingerprint(&manifest, &root)?;
         Ok(Self {
+            fingerprint,
             manifest,
             root,
             schema,
         })
     }
+}
+
+fn fingerprint(manifest: &ProjectManifest, root: &Path) -> Result<String, String> {
+    let mut hash = Sha256::new();
+    let mut add = |bytes: &[u8]| {
+        hash.update((bytes.len() as u64).to_be_bytes());
+        hash.update(bytes);
+    };
+    add(b"superquery-project-v1");
+    add(&serde_json::to_vec(manifest).map_err(|e| e.to_string())?);
+    add(&read_input(root, manifest.schema.file.as_std_path())?);
+    for ds in &manifest.data_sources {
+        for (name, asset) in &ds.assets {
+            add(name.as_bytes());
+            add(&read_input(root, asset.file.as_std_path())?);
+        }
+    }
+    Ok(format!("{:x}", hash.finalize()))
 }
 
 /// Read a project-owned file, refusing traversal and symlinks outside the bundle.
@@ -92,6 +115,15 @@ mod tests {
         assert_eq!(p.manifest.name, "erc20-transfers");
         assert_eq!(p.manifest.min_start_block(), 21_000_000);
         assert!(p.schema.contains("Transfer"));
+    }
+    #[test]
+    fn fingerprint_tracks_semantic_manifest_changes() {
+        let p = LoadedProject::load("../../tests/fixtures/sdk-erc20").unwrap();
+        assert_eq!(p.fingerprint.len(), 64);
+        assert_eq!(p.fingerprint, fingerprint(&p.manifest, &p.root).unwrap());
+        let mut changed = p.manifest.clone();
+        changed.start_block = Some(1);
+        assert_ne!(p.fingerprint, fingerprint(&changed, &p.root).unwrap());
     }
     #[test]
     fn rejects_future_manifest_version() {
