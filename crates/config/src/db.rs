@@ -30,7 +30,7 @@ pub enum DbConfigError {
 }
 
 /// Resolved Postgres connection settings.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct DbConfig {
     /// Server host.
     pub host: String,
@@ -75,7 +75,7 @@ impl DbConfig {
         }
 
         let d = Self::default();
-        let database = url.path().trim_start_matches('/').to_string();
+        let database = decode(url.path().trim_start_matches('/'));
         if database.is_empty() {
             return Err(DbConfigError::MissingDatabase);
         }
@@ -131,7 +131,11 @@ impl DbConfig {
     pub fn connection_string(&self) -> String {
         format!(
             "host={} port={} user={} password={} dbname={}",
-            self.host, self.port, self.username, self.password, self.database
+            quote(&self.host),
+            self.port,
+            quote(&self.username),
+            quote(&self.password),
+            quote(&self.database)
         )
     }
 
@@ -142,6 +146,18 @@ impl DbConfig {
             self.username, self.host, self.port, self.database, self.schema
         )
     }
+}
+
+impl std::fmt::Debug for DbConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DbConfig")
+            .field("connection", &self.redacted())
+            .finish()
+    }
+}
+
+fn quote(value: &str) -> String {
+    format!("'{}'", value.replace('\\', "\\\\").replace('\'', "\\'"))
 }
 
 /// Percent-decode a URL userinfo component, leaving it unchanged if it is not
