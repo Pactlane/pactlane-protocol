@@ -146,28 +146,44 @@ impl MetadataStore {
             (keys::SCHEMA_VERSION, SCHEMA_VERSION),
         ];
 
-        let mut existing = Vec::new();
-        for (key, expected) in checks {
-            match self.get(db, key).await? {
-                Some(found) if found != expected => {
+        self.verify_facts(db, &checks).await
+    }
+
+    async fn verify_facts(&self, db: &Database, checks: &[(&str, &str)]) -> Result<InitOutcome> {
+        let mut client = db.client().await?;
+        let tx = client.transaction().await?;
+        tx.batch_execute(&format!(
+            "LOCK TABLE \"{}\".\"{METADATA_TABLE}\" IN EXCLUSIVE MODE",
+            self.schema
+        ))
+        .await?;
+        let sql = format!(
+            "SELECT value FROM \"{}\".\"{METADATA_TABLE}\" WHERE key = $1",
+            self.schema
+        );
+        let mut missing = Vec::new();
+        for &(key, expected) in checks {
+            match tx.query_opt(&sql, &[&key]).await? {
+                Some(row) if row.get::<_, String>(0) != expected => {
                     return Err(StoreError::MetadataConflict(format!(
-                        "schema '{}' holds {key}={found:?} but this run expects {expected:?}",
+                        "schema '{}' has incompatible {key}",
                         self.schema
                     )));
                 }
-                Some(_) => existing.push(key),
-                None => {}
+                Some(_) => {}
+                None => missing.push((key, expected)),
             }
         }
-
-        if existing.len() == checks.len() {
-            return Ok(InitOutcome::Resumed);
+        let outcome = if missing.is_empty() {
+            InitOutcome::Resumed
+        } else {
+            InitOutcome::Initialized
+        };
+        for (key, value) in missing {
+            self.set_tx(&tx, key, value).await?;
         }
-
-        for (key, value) in checks {
-            self.set(db, key, value).await?;
-        }
-        Ok(InitOutcome::Initialized)
+        tx.commit().await?;
+        Ok(outcome)
     }
 }
 
