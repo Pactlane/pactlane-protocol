@@ -124,17 +124,41 @@ impl<A: ChainAdapter> FetchScheduler<A> {
         Ok(blocks)
     }
 
-    /// Run the fetch loop until the end height is reached or the task is
-    /// cancelled.
-    ///
-    /// # Milestone
-    ///
-    /// Not yet implemented — needs the dispatcher wiring from guide Milestone 7.
-    /// [`FetchScheduler::next_heights`] is the decision half and is usable and
-    /// tested now; this is the driving half.
-    pub async fn run(&mut self) -> Result<()> {
-        unimplemented!(
-            "fetch loop needs dispatcher wiring; guide Milestone 5/7, task plan phase B3"
-        )
+    /// Stop fetching promptly on cancellation; finish any active durable accept.
+    pub async fn run<S: BlockSink<A::FetchedBlock>>(
+        &mut self, sink: &mut S, cancel: &tokio_util::sync::CancellationToken,
+    ) -> Result<()> {
+        if self.config.batch_size == 0 {
+            return Err(crate::CoreError::Other("scheduler batch size must be positive".into()));
+        }
+        while !self.is_complete() {
+            let blocks = tokio::select! {
+                biased;
+                _ = cancel.cancelled() => return Ok(()),
+                result = self.fetch_next() => result?,
+            };
+            if blocks.is_empty() {
+                tokio::select! {
+                    biased;
+                    _ = cancel.cancelled() => return Ok(()),
+                    _ = tokio::time::sleep(std::time::Duration::from_millis(self.adapter.block_interval_ms().max(1))) => {},
+                }
+                continue;
+            }
+            for block in blocks {
+                if cancel.is_cancelled() { return Ok(()); }
+                let height = block.header().height;
+                sink.accept(block).await?;
+                self.acknowledge(height)?;
+            }
+        }
+        Ok(())
     }
+}
+
+/// A consumer must return success only after the block is durably accepted.
+#[async_trait::async_trait]
+pub trait BlockSink<B: Send>: Send {
+    /// Commit the next block or return an error without acknowledging it.
+    async fn accept(&mut self, block: B) -> Result<()>;
 }

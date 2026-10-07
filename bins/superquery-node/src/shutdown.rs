@@ -1,44 +1,22 @@
-//! Graceful shutdown.
-//!
-//! Guide Milestone 1 requires clean shutdown on SIGINT/SIGTERM, and it matters
-//! more here than in most programs: a node killed mid-block must not leave a
-//! partially-indexed block behind. The store's transaction boundary makes that
-//! impossible at the database level, but a clean stop also means finishing the
-//! block in progress rather than rolling it back, so a restart does not redo work.
-//!
-//! A second signal exits immediately — if the first shutdown is wedged, the
-//! operator needs a way out that does not involve `SIGKILL`.
+//! Persistent cancellation shared by startup and indexing.
 
-use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
 
-use tokio::sync::Notify;
-
-/// Broadcasts a shutdown request to every task.
+/// Shared shutdown request, including for late subscribers.
 #[derive(Clone)]
 pub struct Shutdown {
-    notify: Arc<Notify>,
+    token: CancellationToken,
 }
 
 impl Shutdown {
-    /// Create a shutdown signal.
-    pub fn new() -> Self {
-        Self {
-            notify: Arc::new(Notify::new()),
-        }
-    }
-
-    /// Wait until shutdown is requested.
-    ///
-    /// `notified()` is permit-based, so a task that starts waiting after the
-    /// signal fires still returns immediately rather than hanging.
-    pub async fn recv(&self) {
-        self.notify.notified().await;
-    }
-
-    /// Request shutdown, waking every waiter.
-    pub fn trigger(&self) {
-        self.notify.notify_waiters();
-    }
+    /// Create an uncancelled signal.
+    pub fn new() -> Self { Self { token: CancellationToken::new() } }
+    /// Wait for cancellation.
+    pub async fn recv(&self) { self.token.cancelled().await; }
+    /// Request graceful shutdown.
+    pub fn trigger(&self) { self.token.cancel(); }
+    /// Pass cancellation into the fetch loop.
+    pub fn token(&self) -> &CancellationToken { &self.token }
 }
 
 impl Default for Shutdown {
