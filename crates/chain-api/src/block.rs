@@ -64,7 +64,7 @@ impl Header {
     /// Returns `false` when the parent hash is unknown — an unverifiable link is
     /// not a valid one, and treating it as valid would mask reorgs.
     pub fn is_child_of(&self, parent: &Header) -> bool {
-        self.height == parent.height + 1
+        Some(self.height) == parent.height.checked_add(1)
             && self.parent_hash.as_deref() == Some(parent.hash.as_str())
     }
 }

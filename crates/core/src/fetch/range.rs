@@ -34,7 +34,7 @@ impl BlockRange {
 
     /// Number of heights in the span.
     pub fn len(&self) -> u64 {
-        self.end - self.start + 1
+        self.end.saturating_sub(self.start).saturating_add(1)
     }
 
     /// Always `false` — a `BlockRange` is inclusive, so it holds at least one
@@ -97,7 +97,7 @@ impl RangePlan {
             Some(end) => safe_head.min(end),
             None => safe_head,
         };
-        if next_height > ceiling {
+        if batch_size == 0 || next_height > ceiling {
             return None;
         }
 
@@ -139,20 +139,9 @@ impl RangePlan {
     }
 }
 
-/// The highest height it is safe to index right now.
-///
-/// With `unfinalized` set the node indexes up to the chain head and accepts that
-/// reorgs must be handled. Without it, indexing stops at the finalized height —
-/// falling back to a depth-based estimate when the chain reports finality of 0,
-/// which some endpoints do before they have synced.
-pub fn safe_head(latest: u64, finalized: u64, unfinalized: bool, confirmations: u64) -> u64 {
-    if unfinalized {
-        latest
-    } else if finalized > 0 {
-        finalized.min(latest)
-    } else {
-        latest.saturating_sub(confirmations)
-    }
+/// The adapter resolves chain-specific fallback; zero is a valid finalized height.
+pub fn safe_head(latest: u64, finalized: u64, unfinalized: bool, _confirmations: u64) -> u64 {
+    if unfinalized { latest } else { finalized.min(latest) }
 }
 
 #[cfg(test)]

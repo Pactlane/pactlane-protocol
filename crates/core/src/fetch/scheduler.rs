@@ -1,20 +1,4 @@
-//! The fetch loop: decide what to fetch, fetch it, hand it to the dispatcher.
-//!
-//! ```text
-//! latest safe height
-//!        |
-//!        v
-//! calculate [start..end]        <- fetch::range
-//!        |
-//!        v
-//! fetch concurrently            <- bounded by fetch::backpressure
-//!        |
-//!        v
-//! ordered dispatch              <- superquery-dispatcher
-//! ```
-//!
-//! Upstream analogue: `node-core/src/indexer/fetch.service.ts`.
-
+//! Bounded block fetching with acknowledgement-based progress.
 use std::sync::Arc;
 
 use superquery_chain_api::ChainAdapter;
@@ -46,6 +30,8 @@ pub struct FetchScheduler<A: ChainAdapter> {
     config: SchedulerConfig,
     plan: RangePlan,
     next_height: u64,
+    exhausted: bool,
+    pending: std::collections::VecDeque<u64>,
 }
 
 impl<A: ChainAdapter> FetchScheduler<A> {
@@ -57,6 +43,8 @@ impl<A: ChainAdapter> FetchScheduler<A> {
             config,
             plan,
             next_height,
+            exhausted: false,
+            pending: Default::default(),
         }
     }
 
@@ -67,7 +55,9 @@ impl<A: ChainAdapter> FetchScheduler<A> {
 
     /// Resume from a checkpoint: continue at the block after the last committed one.
     pub fn resume_from(&mut self, last_indexed: u64) {
+        self.exhausted = last_indexed == u64::MAX;
         self.next_height = last_indexed.saturating_add(1).max(self.config.start_height);
+        self.pending.clear();
     }
 
     /// Ask the chain how far it is currently safe to index.
@@ -82,28 +72,36 @@ impl<A: ChainAdapter> FetchScheduler<A> {
         ))
     }
 
-    /// The heights to fetch next, or an empty vec when caught up.
-    ///
-    /// Advances the cursor, so each call yields a distinct batch.
+    /// Plan a batch without advancing past unacknowledged work.
     pub async fn next_heights(&mut self, in_flight: u32, queued: u32) -> Result<Vec<u64>> {
+        if self.is_complete() { return Ok(Vec::new()); }
+        let budget = self.config.backpressure.clamp_batch(self.config.batch_size, in_flight, queued);
+        if budget == 0 { return Ok(Vec::new()); }
+        if !self.pending.is_empty() { return Ok(self.pending.iter().copied().take(budget as usize).collect()); }
         let head = self.safe_head().await?;
-        let budget =
-            self.config
-                .backpressure
-                .clamp_batch(self.config.batch_size, in_flight, queued);
-        if budget == 0 {
-            return Ok(Vec::new());
-        }
-
-        let Some(range) =
-            self.plan
-                .next_batch(self.next_height, head, budget, self.config.end_height)
-        else {
+        let Some(range) = self.plan.next_batch(self.next_height, head, budget, self.config.end_height) else {
             return Ok(Vec::new());
         };
+        self.pending = self.plan.heights_in(&range).into();
+        Ok(self.pending.iter().copied().collect())
+    }
 
-        self.next_height = range.end.saturating_add(1);
-        Ok(self.plan.heights_in(&range))
+    /// Advance only after the consumer durably accepts this exact next block.
+    pub fn acknowledge(&mut self, height: u64) -> Result<()> {
+        if self.pending.front() != Some(&height) {
+            return Err(crate::CoreError::Other("out-of-order scheduler acknowledgement".into()));
+        }
+        self.pending.pop_front();
+        self.exhausted = height == u64::MAX;
+        self.next_height = height.saturating_add(1);
+        Ok(())
+    }
+
+    /// Whether the configured finite range has been consumed.
+    pub fn is_complete(&self) -> bool {
+        self.exhausted || (self.pending.is_empty() && self.config.end_height.is_some_and(|end| {
+            self.plan.next_batch(self.next_height, end, self.config.batch_size, Some(end)).is_none()
+        }))
     }
 
     /// Run the fetch loop until the end height is reached or the task is
