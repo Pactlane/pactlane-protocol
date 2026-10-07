@@ -18,3 +18,6 @@ pub use node::{HistoricalMode, NodeConfig};
 // The SDK owns these wire contracts.
 pub use superquery_manifest::{self as manifest, ProjectManifest};
 pub use superquery_types::{self as types};
+
+pub mod project;
+pub use project::LoadedProject;
