@@ -49,3 +49,6 @@ pub use schema::{parse_entities, EntityField, EntityModel};
 pub use store::{
     Entity, EntityStore, FieldExpression, FieldOperator, GetOptions, Operation, OperationType,
 };
+
+pub mod ingestion;
+pub use ingestion::IngestionStore;

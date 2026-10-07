@@ -12,6 +12,10 @@ use tracing_subscriber::EnvFilter;
 
 /// Everything the node needs, assembled and verified.
 pub struct NodeContext {
+    /// Verified EVM connection.
+    pub adapter: std::sync::Arc<superquery_chain_evm::EvmAdapter>,
+    /// Compiled handler selectors.
+    pub handlers: Vec<superquery_chain_evm::project::PreparedHandler>,
     /// Validated SDK project.
     pub project: LoadedProject,
     /// Resolved database settings.
@@ -118,6 +122,20 @@ pub async fn bootstrap(config: &NodeConfig) -> Result<NodeContext> {
         config.rpc_urls.clone()
     };
     let rpc_endpoints = resolve_endpoints(&endpoints)?;
+    let handlers = superquery_chain_evm::project::prepare_handlers(&project.manifest)?;
+    let start = config.start_height.unwrap_or_else(|| project.manifest.min_start_block());
+    if start > i64::MAX as u64 || config.end_height.is_some_and(|end| end < start) {
+        anyhow::bail!("invalid effective project start/end height");
+    }
+    let adapter = std::sync::Arc::new(superquery_chain_evm::EvmAdapter::new(
+        superquery_chain_evm::EvmAdapterConfig {
+            endpoints: rpc_endpoints.clone(), chain_id: project.manifest.network.chain_id.clone(),
+            timeout_secs: config.rpc_timeout_secs, max_retries: config.rpc_max_retries,
+            finality_confirmations: config.finality_confirmations,
+        }
+    ));
+    use superquery_chain_api::ChainAdapter;
+    adapter.validate_network(&project.manifest.network.chain_id).await?;
 
     // 2. Database configuration, then an actual round trip. Configuration errors
     //    are far more common than an unreachable server, so parse before dialling.
@@ -139,6 +157,8 @@ pub async fn bootstrap(config: &NodeConfig) -> Result<NodeContext> {
     // 3. RPC endpoints.
 
     Ok(NodeContext {
+        adapter,
+        handlers,
         project,
         db_config,
         database,

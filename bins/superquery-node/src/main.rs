@@ -14,6 +14,7 @@
 //! seconds in is a misconfiguration discovered after the node has already written
 //! to someone's database.
 
+mod ingest;
 mod shutdown;
 mod startup;
 
@@ -54,28 +55,12 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn run(config: &NodeConfig, shutdown: Shutdown) -> anyhow::Result<()> {
-    let context = startup::bootstrap(config).await?;
+    anyhow::ensure!(config.ingest_only, "mapping execution is not yet available; use --ingest-only for finalized block ingestion");
+    let context = tokio::select! {
+        biased;
+        _ = shutdown.recv() => return Ok(()),
+        result = startup::bootstrap(config) => result?,
+    };
     context.log_summary();
-
-    // Where would this run resume from? Answering it at startup proves the store
-    // round-trips, and is the first half of Milestone 2's "restart without losing
-    // indexed height".
-    match context.resume_position().await? {
-        Some(checkpoint) => tracing::info!(
-            indexed = %checkpoint.indexed,
-            finalized_height = checkpoint.finalized_height,
-            "resuming from checkpoint"
-        ),
-        None => tracing::info!(
-            "no checkpoint found; this run would start from the project's start block"
-        ),
-    }
-
-    tracing::warn!(
-        "indexing pipeline not yet wired: guide Milestones 4-9 (task plan phases B and C). \
-         Startup, configuration, store and shutdown are functional; waiting for shutdown signal."
-    );
-
-    shutdown.recv().await;
-    Ok(())
+    ingest::run(config, context, shutdown).await
 }
