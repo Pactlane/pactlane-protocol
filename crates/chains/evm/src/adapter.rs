@@ -128,23 +128,27 @@ impl ChainAdapter for EvmAdapter {
         &self.chain_name
     }
 
-    async fn validate_network(&self, _expected: &str) -> Result<()> {
-        // Milestone: eth_chainId round-trip. Guide Milestone 4, task plan phase B2.
-        Err(ChainError::Other(
-            "EVM RPC not yet implemented: guide Milestone 4, task plan phase B2".into(),
-        ))
+    async fn validate_network(&self, expected: &str) -> Result<()> {
+        let actual = crate::rpc::quantity(&self.request("eth_chainId", serde_json::json!([])).await?)?;
+        if expected.parse::<u64>().ok() != Some(actual) {
+            return Err(ChainError::ChainIdMismatch { expected: expected.into(), actual: actual.to_string() });
+        }
+        Ok(())
     }
 
     async fn latest_height(&self) -> Result<u64> {
-        Err(ChainError::Other(
-            "EVM RPC not yet implemented: guide Milestone 4, task plan phase B2".into(),
-        ))
+        crate::rpc::quantity(&self.request("eth_blockNumber", serde_json::json!([])).await?)
     }
 
     async fn finalized_height(&self) -> Result<u64> {
-        Err(ChainError::Other(
-            "EVM RPC not yet implemented: guide Milestone 4, task plan phase B2".into(),
-        ))
+        match self.request("eth_getBlockByNumber", serde_json::json!(["finalized", false])).await {
+            Ok(value) if value.is_null() => Ok(0),
+            Ok(value) => crate::rpc::quantity(&value["number"]),
+            Err(ChainError::Rpc { code: -32601 | -32602 }) => {
+                Ok(self.latest_height().await?.saturating_sub(self.config.finality_confirmations))
+            }
+            Err(error) => Err(error),
+        }
     }
 
     async fn fetch_block(&self, _height: u64) -> Result<Self::FetchedBlock> {
