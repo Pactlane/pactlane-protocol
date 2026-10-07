@@ -1,0 +1,18 @@
+# A SuperQuery project is an ordinary Rust crate that compiles to WASM.
+# It is deliberately outside the SDK's own Cargo workspace.
+[package]
+name = "erc20-transfers"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+superquery-sdk = { git = "https://github.com/blockSuperquery/superquery-sdk", version = "0.1.0" }
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = "symbols"

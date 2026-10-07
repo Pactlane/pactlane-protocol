@@ -1,0 +1,22 @@
+"""
+One ERC-20 Transfer event.
+"""
+type Transfer @entity {
+  id: ID!
+  from: String!
+  to: String!
+  value: BigInt!
+  blockNumber: BigInt!
+  timestamp: Date!
+  transactionHash: Bytes!
+}
+
+"""
+Running balance per holder, updated on every transfer.
+"""
+type Holder @entity {
+  id: ID!
+  address: String! @index
+  balance: BigInt!
+  transferCount: Int!
+}

@@ -14,5 +14,10 @@ serde = { workspace = true }
 thiserror.workspace = true
 url.workspace = true
 
+superquery-manifest = { path = "../../vendor/sdk/manifest" }
+superquery-types = { path = "../../vendor/sdk/types" }
+serde_json.workspace = true
+sha2.workspace = true
+
 [lints]
 workspace = true
