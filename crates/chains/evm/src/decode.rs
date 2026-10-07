@@ -22,3 +22,54 @@ pub(crate) fn header(value: &Value, expected: u64) -> Result<Header> {
         .ok_or_else(|| ChainError::Decode("invalid block timestamp".into()))?;
     Ok(Header { height, hash: hash(&value["hash"])?, parent_hash: Some(hash(&value["parentHash"])?), timestamp: Some(timestamp) })
 }
+
+fn bytes(value: &Value) -> Result<String> {
+    value.as_str().and_then(|s| s.parse::<alloy::primitives::Bytes>().ok())
+        .map(|b| format!("{b:#x}"))
+        .ok_or_else(|| ChainError::Decode("invalid RPC byte string".into()))
+}
+
+pub(crate) fn block(value: &Value, logs: &Value, expected: u64) -> Result<crate::EvmBlock> {
+    let header = header(value, expected)?;
+    let mismatch = || ChainError::Decode("inconsistent block, transaction or log identity".into());
+    let mut transactions = Vec::new();
+    let mut hashes = std::collections::HashSet::new();
+    for (index, tx) in value["transactions"].as_array().ok_or_else(mismatch)?.iter().enumerate() {
+        let tx_hash = hash(&tx["hash"])?;
+        if quantity(&tx["transactionIndex"])? != index as u64
+            || quantity(&tx["blockNumber"])? != expected
+            || hash(&tx["blockHash"])? != header.hash || !hashes.insert(tx_hash.clone()) {
+            return Err(mismatch());
+        }
+        let raw_value = tx["value"].as_str().ok_or_else(mismatch)?;
+        let value = raw_value.parse::<alloy::primitives::U256>().map_err(|_| mismatch())?;
+        transactions.push(crate::EvmTransaction {
+            hash: tx_hash, transaction_index: index as u64, from: address(&tx["from"])?,
+            to: if tx["to"].is_null() { None } else { Some(address(&tx["to"])?) },
+            value: value.to_string(), input: bytes(&tx["input"])?,
+        });
+    }
+    let mut decoded_logs = Vec::new();
+    for log in logs.as_array().ok_or_else(mismatch)? {
+        let tx_index = quantity(&log["transactionIndex"])?;
+        let tx = usize::try_from(tx_index).ok().and_then(|i| transactions.get(i)).ok_or_else(mismatch)?;
+        if log["removed"].as_bool() != Some(false) || hash(&log["blockHash"])? != header.hash
+            || quantity(&log["blockNumber"])? != expected || hash(&log["transactionHash"])? != tx.hash {
+            return Err(mismatch());
+        }
+        let topics = log["topics"].as_array().ok_or_else(mismatch)?.iter().map(hash).collect::<Result<Vec<_>>>()?;
+        if topics.len() > 4 { return Err(mismatch()); }
+        decoded_logs.push(crate::EvmLog {
+            address: address(&log["address"])?, topics, data: bytes(&log["data"])?,
+            log_index: quantity(&log["logIndex"])? , transaction_hash: tx.hash.clone(), transaction_index: tx_index,
+        });
+    }
+    decoded_logs.sort_by_key(|log| log.log_index);
+    for (index, log) in decoded_logs.iter().enumerate() {
+        if log.log_index != index as u64 { return Err(mismatch()); }
+    }
+    Ok(crate::EvmBlock {
+        number: expected, hash: header.hash, parent_hash: header.parent_hash.ok_or_else(mismatch)?,
+        timestamp: quantity(&value["timestamp"])? , transactions, logs: decoded_logs,
+    })
+}

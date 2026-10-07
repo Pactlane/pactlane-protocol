@@ -151,10 +151,12 @@ impl ChainAdapter for EvmAdapter {
         }
     }
 
-    async fn fetch_block(&self, _height: u64) -> Result<Self::FetchedBlock> {
-        Err(ChainError::Other(
-            "EVM RPC not yet implemented: guide Milestone 4, task plan phase B2".into(),
-        ))
+    async fn fetch_block(&self, height: u64) -> Result<Self::FetchedBlock> {
+        let value = self.request("eth_getBlockByNumber", serde_json::json!([format!("0x{height:x}"), true])).await?;
+        let header = crate::decode::header(&value, height)?;
+        let logs = self.request("eth_getLogs", serde_json::json!([{ "blockHash": header.hash }])).await?;
+        let block = crate::decode::block(&value, &logs, height)?;
+        Ok(GenericBlock::new(header, block))
     }
 
     async fn header_at(&self, height: u64) -> Result<Header> {
