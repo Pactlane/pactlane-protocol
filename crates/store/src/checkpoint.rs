@@ -14,7 +14,7 @@
 
 use superquery_chain_api::{BlockPtr, FinalityState, Header};
 
-use crate::error::Result;
+use crate::error::{Result, StoreError};
 use crate::metadata::{keys, MetadataStore};
 use crate::postgres::{validate_ident, Database};
 
@@ -72,24 +72,23 @@ impl CheckpointStore {
 
     /// The current checkpoint, or `None` on a fresh schema.
     pub async fn load(&self, db: &Database) -> Result<Option<Checkpoint>> {
-        let height = self.metadata.get_u64(db, keys::INDEXED_HEIGHT).await?;
-        let hash = self.metadata.get(db, keys::INDEXED_BLOCK_HASH).await?;
-        let finalized = self
-            .metadata
-            .get_u64(db, keys::FINALIZED_HEIGHT)
-            .await?
-            .unwrap_or(0);
-
-        Ok(match (height, hash) {
-            (Some(height), Some(hash)) => Some(Checkpoint {
-                indexed: BlockPtr::new(height, hash),
-                finalized_height: finalized,
-            }),
-            // Height without hash means an interrupted write; treat as no
-            // checkpoint and re-index from the project start rather than trusting
-            // a half-written position.
-            _ => None,
-        })
+        let sql = format!(
+            "SELECT key, value FROM \"{}\".\"_superquery_metadata\" WHERE key = ANY($1)", self.schema
+        );
+        let keys = vec![keys::INDEXED_HEIGHT, keys::INDEXED_BLOCK_HASH, keys::FINALIZED_HEIGHT];
+        let rows = db.query(&sql, &[&keys]).await?;
+        let values: std::collections::HashMap<String, String> = rows.iter()
+            .map(|r| (r.get(0), r.get(1))).collect();
+        if values.is_empty() { return Ok(None); }
+        let required = |key: &str| values.get(key).filter(|v| !v.is_empty())
+            .ok_or_else(|| StoreError::Decode(format!("incomplete checkpoint: missing {key}")));
+        let number = |key: &str| -> Result<u64> {
+            required(key)?.parse().map_err(|_| StoreError::Decode(format!("invalid checkpoint {key}")))
+        };
+        Ok(Some(Checkpoint {
+            indexed: BlockPtr::new(number(keys::INDEXED_HEIGHT)?, required(keys::INDEXED_BLOCK_HASH)?.clone()),
+            finalized_height: number(keys::FINALIZED_HEIGHT)?,
+        }))
     }
 
     /// Record a committed block **inside the caller's transaction**.
