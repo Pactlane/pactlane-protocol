@@ -149,6 +149,28 @@ impl MetadataStore {
         self.verify_facts(db, &checks).await
     }
 
+    /// Bind a schema to exact project inputs and mapping ABI.
+    pub async fn verify_project(
+        &self,
+        db: &Database,
+        project_id: &str,
+        chain_id: &str,
+        fingerprint: &str,
+        abi_version: &str,
+    ) -> Result<InitOutcome> {
+        self.verify_facts(
+            db,
+            &[
+                (keys::PROJECT_ID, project_id),
+                (keys::CHAIN_ID, chain_id),
+                (keys::SCHEMA_VERSION, SCHEMA_VERSION),
+                (keys::MANIFEST_HASH, fingerprint),
+                (keys::MAPPING_ABI_VERSION, abi_version),
+            ],
+        )
+        .await
+    }
+
     async fn verify_facts(&self, db: &Database, checks: &[(&str, &str)]) -> Result<InitOutcome> {
         let mut client = db.client().await?;
         let tx = client.transaction().await?;

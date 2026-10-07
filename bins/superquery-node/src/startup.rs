@@ -6,12 +6,14 @@
 //! trip to discover.
 
 use anyhow::{Context, Result};
-use superquery_config::{DbConfig, NodeConfig};
-use superquery_store::{Checkpoint, CheckpointStore, Database};
+use superquery_config::{DbConfig, LoadedProject, NodeConfig};
+use superquery_store::{Checkpoint, CheckpointStore, Database, MetadataStore};
 use tracing_subscriber::EnvFilter;
 
 /// Everything the node needs, assembled and verified.
 pub struct NodeContext {
+    /// Validated SDK project.
+    pub project: LoadedProject,
     /// Resolved database settings.
     pub db_config: DbConfig,
     /// A live connection pool.
@@ -61,6 +63,16 @@ impl NodeContext {
             .map_err(anyhow::Error::new)
             .context("could not create the node's bookkeeping tables")?;
 
+        MetadataStore::new(&self.db_config.schema)?
+            .verify_project(
+                &self.database,
+                &self.project.manifest.name,
+                &self.project.manifest.network.chain_id,
+                &self.project.fingerprint,
+                "1",
+            )
+            .await?;
+
         checkpoints
             .load(&self.database)
             .await
@@ -91,6 +103,21 @@ pub fn init_tracing(config: &NodeConfig) -> Result<()> {
 pub async fn bootstrap(config: &NodeConfig) -> Result<NodeContext> {
     // 1. Project path — a local check, so it costs nothing to do first.
     let project_path = resolve_project(&config.project)?;
+    let project = LoadedProject::load(&project_path).map_err(anyhow::Error::msg)?;
+    superquery_store::parse_entities(&project.schema).context("invalid project schema")?;
+    let endpoints = if config.rpc_urls.is_empty() {
+        project
+            .manifest
+            .network
+            .endpoint
+            .as_slice()
+            .iter()
+            .map(ToString::to_string)
+            .collect()
+    } else {
+        config.rpc_urls.clone()
+    };
+    let rpc_endpoints = resolve_endpoints(&endpoints)?;
 
     // 2. Database configuration, then an actual round trip. Configuration errors
     //    are far more common than an unreachable server, so parse before dialling.
@@ -110,9 +137,9 @@ pub async fn bootstrap(config: &NodeConfig) -> Result<NodeContext> {
     tracing::debug!("postgres reachable");
 
     // 3. RPC endpoints.
-    let rpc_endpoints = resolve_endpoints(&config.rpc_urls)?;
 
     Ok(NodeContext {
+        project,
         db_config,
         database,
         project_path,
