@@ -32,3 +32,4 @@ pub use block::{EvmBlock, EvmEvent, EvmLog, EvmTransaction};
 pub use filter::{EvmLogFilter, EvmTransactionFilter, LogView, TopicFilter, TransactionView};
 
 mod rpc;
+mod decode;
