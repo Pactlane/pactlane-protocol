@@ -1,7 +1,8 @@
 //! Bounded block fetching with acknowledgement-based progress.
 use std::sync::Arc;
 
-use superquery_chain_api::ChainAdapter;
+use superquery_chain_api::{ChainAdapter, IBlock};
+use futures::{stream, StreamExt, TryStreamExt};
 
 use crate::error::Result;
 use crate::fetch::backpressure::Backpressure;
@@ -102,6 +103,25 @@ impl<A: ChainAdapter> FetchScheduler<A> {
         self.exhausted || (self.pending.is_empty() && self.config.end_height.is_some_and(|end| {
             self.plan.next_batch(self.next_height, end, self.config.batch_size, Some(end)).is_none()
         }))
+    }
+
+    /// Fetch concurrently while bounding retained blocks and preserving height order.
+    pub async fn fetch_next(&mut self) -> Result<Vec<A::FetchedBlock>> {
+        let heights = self.next_heights(0, 0).await?;
+        let adapter = &self.adapter;
+        let blocks: Vec<A::FetchedBlock> = stream::iter(heights.into_iter().map(|height| async move {
+            let block = adapter.fetch_block(height).await?;
+            if block.header().height != height {
+                return Err(crate::CoreError::Other("adapter returned the wrong block height".into()));
+            }
+            Ok(block)
+        })).buffered(self.config.backpressure.max_in_flight.max(1) as usize).try_collect().await?;
+        for pair in blocks.windows(2) {
+            if !pair[1].header().is_child_of(pair[0].header()) {
+                return Err(crate::CoreError::Other("fetched batch contains inconsistent parent hashes".into()));
+            }
+        }
+        Ok(blocks)
     }
 
     /// Run the fetch loop until the end height is reached or the task is
