@@ -138,16 +138,7 @@ fn resolve_endpoints(endpoints: &[String]) -> Result<Vec<String>> {
         anyhow::bail!("no RPC endpoint configured: pass --rpc-url or set SUPERQUERY_RPC_URL");
     }
     for endpoint in endpoints {
-        if !endpoint.starts_with("http://")
-            && !endpoint.starts_with("https://")
-            && !endpoint.starts_with("ws://")
-            && !endpoint.starts_with("wss://")
-        {
-            anyhow::bail!(
-                "RPC endpoint '{endpoint}' has no supported scheme \
-                 (expected http, https, ws or wss)"
-            );
-        }
+        superquery_config::endpoint::validate_endpoint(endpoint).map_err(anyhow::Error::msg)?;
     }
     Ok(endpoints.to_vec())
 }
@@ -157,16 +148,7 @@ fn resolve_endpoints(endpoints: &[String]) -> Result<Vec<String>> {
 /// Provider URLs routinely carry the API key in the path, and logs get pasted
 /// into issue trackers.
 fn redact_endpoint(endpoint: &str) -> String {
-    match endpoint.split_once("://") {
-        Some((scheme, rest)) => {
-            let host_and_path = rest.split_once('@').map(|(_, h)| h).unwrap_or(rest);
-            match host_and_path.split_once('/') {
-                Some((host, path)) if !path.is_empty() => format!("{scheme}://{host}/***"),
-                _ => format!("{scheme}://{host_and_path}"),
-            }
-        }
-        None => "***".to_string(),
-    }
+    superquery_config::endpoint::redact_endpoint(endpoint)
 }
 
 #[cfg(test)]
@@ -202,10 +184,10 @@ mod tests {
     #[test]
     fn endpoint_schemes_are_checked() {
         assert!(resolve_endpoints(&["https://eth.example".into()]).is_ok());
-        assert!(resolve_endpoints(&["wss://eth.example".into()]).is_ok());
+        assert!(resolve_endpoints(&["wss://eth.example".into()]).is_err());
 
         let err = resolve_endpoints(&["eth.example".into()]).unwrap_err();
-        assert!(err.to_string().contains("no supported scheme"));
+        assert!(err.to_string().contains("invalid RPC URL"));
     }
 
     #[test]
@@ -213,11 +195,11 @@ mod tests {
         // Provider URLs carry keys in the path, and logs get shared.
         assert_eq!(
             redact_endpoint("https://eth-mainnet.g.alchemy.com/v2/SECRETKEY"),
-            "https://eth-mainnet.g.alchemy.com/***"
+            "https://eth-mainnet.g.alchemy.com"
         );
         assert_eq!(
             redact_endpoint("https://user:pass@node.example/rpc"),
-            "https://node.example/***"
+            "https://node.example"
         );
         // Nothing sensitive to strip.
         assert_eq!(

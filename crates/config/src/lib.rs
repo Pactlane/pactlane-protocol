@@ -21,3 +21,5 @@ pub use superquery_types::{self as types};
 
 pub mod project;
 pub use project::LoadedProject;
+
+pub mod endpoint;
