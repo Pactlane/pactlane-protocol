@@ -24,3 +24,6 @@ Cargo.lock.orig
 .claude/*
 !.claude/docs/
 !.claude/tasks/
+
+node_docs_cont.md
+node_docs_progress.md

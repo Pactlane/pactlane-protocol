@@ -60,6 +60,10 @@ pub struct NodeConfig {
     )]
     pub rpc_urls: Vec<String>,
 
+    /// Fetch finalized blocks and persist ingestion progress without running mappings.
+    #[arg(long, default_value_t = false)]
+    pub ingest_only: bool,
+
     // --- Range selection ---
     /// Height to start indexing from. Defaults to the project's start block.
     #[arg(long)]
@@ -169,6 +173,25 @@ impl NodeConfig {
     /// Called once at startup so a contradictory invocation fails immediately
     /// rather than part-way through a run.
     pub fn validate(&self) -> Result<(), String> {
+        for (name, value) in [
+            ("batch-size", self.batch_size as u64),
+            ("max-in-flight", self.max_in_flight as u64),
+            ("queue-capacity", self.queue_capacity as u64),
+            ("rpc-timeout-secs", self.rpc_timeout_secs),
+            ("rpc-max-retries", self.rpc_max_retries as u64),
+            ("workers", self.resolved_workers() as u64),
+            ("query-limit", self.query_limit as u64),
+            ("mapping-fuel", self.mapping_fuel),
+            ("mapping-timeout-ms", self.mapping_timeout_ms),
+            ("mapping-memory-mb", self.mapping_memory_mb as u64),
+        ] {
+            if value == 0 {
+                return Err(format!("--{name} must be greater than zero"));
+            }
+        }
+        if self.ingest_only && self.unfinalized_blocks {
+            return Err("--ingest-only currently requires finalized blocks".into());
+        }
         if let (Some(start), Some(end)) = (self.start_height, self.end_height) {
             if end < start {
                 return Err(format!(
@@ -195,6 +218,16 @@ impl NodeConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rejects_zero_budgets_from_embedding() {
+        let mut c = NodeConfig::with_defaults("./p");
+        c.rpc_max_retries = 0;
+        assert!(c.validate().unwrap_err().contains("rpc-max-retries"));
+        c.rpc_max_retries = 1;
+        c.workers = Some(0);
+        assert!(c.validate().unwrap_err().contains("workers"));
+    }
 
     #[test]
     fn milestone_1_invocation_parses() {
