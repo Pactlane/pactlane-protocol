@@ -113,7 +113,8 @@ impl CheckpointStore {
                indexed_at = now()",
             self.schema
         );
-        let height = header.height as i64;
+        let height = sql_height(header.height)?;
+        sql_height(finalized_height)?;
         tx.execute(
             &sql,
             &[
@@ -144,8 +145,8 @@ impl CheckpointStore {
              FROM \"{}\".\"{BLOCKS_TABLE}\" WHERE height = $1",
             self.schema
         );
-        let rows = db.query(&sql, &[&(height as i64)]).await?;
-        Ok(rows.first().map(row_to_stored_header))
+        let rows = db.query(&sql, &[&sql_height(height)?]).await?;
+        rows.first().map(row_to_stored_header).transpose()
     }
 
     /// Stored headers from `from` down to `to`, highest first.
@@ -164,8 +165,8 @@ impl CheckpointStore {
              WHERE height <= $1 AND height >= $2 ORDER BY height DESC",
             self.schema
         );
-        let rows = db.query(&sql, &[&(from as i64), &(to as i64)]).await?;
-        Ok(rows.iter().map(row_to_stored_header).collect())
+        let rows = db.query(&sql, &[&sql_height(from)?, &sql_height(to)?]).await?;
+        rows.iter().map(row_to_stored_header).collect()
     }
 
     /// Delete stored headers above `height`, inside a transaction.
@@ -180,7 +181,7 @@ impl CheckpointStore {
             "DELETE FROM \"{}\".\"{BLOCKS_TABLE}\" WHERE height > $1",
             self.schema
         );
-        Ok(tx.execute(&sql, &[&(height as i64)]).await?)
+        Ok(tx.execute(&sql, &[&sql_height(height)?]).await?)
     }
 
     /// Drop finalized headers below `height`, which can no longer be reorged.
@@ -190,7 +191,7 @@ impl CheckpointStore {
              WHERE height < $1 AND finality_state = 'final'",
             self.schema
         );
-        db.execute(&sql, &[&(height as i64)]).await
+        db.execute(&sql, &[&sql_height(height)?]).await
     }
 }
 
@@ -214,15 +215,19 @@ impl StoredHeader {
     }
 }
 
-fn row_to_stored_header(row: &tokio_postgres::Row) -> StoredHeader {
+pub(crate) fn sql_height(height: u64) -> Result<i64> {
+    i64::try_from(height).map_err(|_| StoreError::Decode(format!("height {height} exceeds PostgreSQL bigint")))
+}
+
+fn row_to_stored_header(row: &tokio_postgres::Row) -> Result<StoredHeader> {
     let height: i64 = row.get("height");
     let state: String = row.get("finality_state");
-    StoredHeader {
-        height: height as u64,
+    Ok(StoredHeader {
+        height: u64::try_from(height).map_err(|_| StoreError::Decode("negative stored block height".into()))?,
         hash: row.get("hash"),
         parent_hash: row.get("parent_hash"),
         finality: finality_from_str(&state),
-    }
+    })
 }
 
 fn finality_to_str(state: FinalityState) -> &'static str {

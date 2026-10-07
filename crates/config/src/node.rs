@@ -189,6 +189,9 @@ impl NodeConfig {
                 return Err(format!("--{name} must be greater than zero"));
             }
         }
+        if [self.start_height, self.end_height].into_iter().flatten().any(|h| h > i64::MAX as u64) {
+            return Err("block heights must fit PostgreSQL bigint".into());
+        }
         if self.ingest_only && self.unfinalized_blocks {
             return Err("--ingest-only currently requires finalized blocks".into());
         }
