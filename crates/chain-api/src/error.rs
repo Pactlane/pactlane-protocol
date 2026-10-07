@@ -46,6 +46,13 @@ pub enum ChainError {
     #[error("decode error: {0}")]
     Decode(String),
 
+    /// A non-transient JSON-RPC failure. Provider text is omitted to protect credentials.
+    #[error("RPC error code {code}")]
+    Rpc {
+        /// JSON-RPC server error code.
+        code: i64,
+    },
+
     /// Anything else the adapter needs to report.
     #[error("{0}")]
     Other(String),

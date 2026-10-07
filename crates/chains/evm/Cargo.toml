@@ -13,6 +13,8 @@ repository.workspace = true
 # chain SDK (guide Milestone 3); tests/integration/crate_boundaries.rs enforces it.
 alloy.workspace = true
 superquery-chain-api.workspace = true
+superquery-config.workspace = true
+tokio.workspace = true
 
 async-trait.workspace = true
 chrono.workspace = true
@@ -21,8 +23,6 @@ serde_json.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 
-[dev-dependencies]
-tokio.workspace = true
 
 [lints]
 workspace = true

@@ -30,3 +30,5 @@ pub mod filter;
 pub use adapter::{EvmAdapter, EvmAdapterConfig, SharedEvmAdapter};
 pub use block::{EvmBlock, EvmEvent, EvmLog, EvmTransaction};
 pub use filter::{EvmLogFilter, EvmTransactionFilter, LogView, TopicFilter, TransactionView};
+
+mod rpc;

@@ -48,6 +48,7 @@ impl Default for EvmAdapterConfig {
 pub struct EvmAdapter {
     config: EvmAdapterConfig,
     chain_name: String,
+    rpc: tokio::sync::OnceCell<crate::rpc::RpcClient>,
 }
 
 impl EvmAdapter {
@@ -58,7 +59,12 @@ impl EvmAdapter {
         let chain_name = well_known_chain_name(&config.chain_id)
             .unwrap_or("evm")
             .to_string();
-        Self { config, chain_name }
+        Self { config, chain_name, rpc: tokio::sync::OnceCell::new() }
+    }
+
+    async fn request(&self, method: &'static str, params: serde_json::Value) -> Result<serde_json::Value> {
+        let rpc = self.rpc.get_or_try_init(|| async { crate::rpc::RpcClient::new(&self.config) }).await?;
+        rpc.request(method, params).await
     }
 
     /// The adapter's configuration.
