@@ -1,9 +1,0 @@
-# Track stable.
-#
-# `rust-version` in Cargo.toml (1.95) documents the floor for anyone building from
-# source. It is set by wasmtime's cranelift backend, not by this repository, and
-# wasmtime raises it regularly -- so the policy is to track stable rather than to
-# hold a fixed MSRV.
-[toolchain]
-channel = "stable"
-components = ["rustfmt", "clippy"]
