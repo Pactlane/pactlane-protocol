@@ -2,7 +2,7 @@
 
 ## Setup
 
-Install the prerequisites listed in the [README](README.md#prerequisites), then:
+Install the prerequisites listed in the [README](README.md#running-tests), then:
 
 ```bash
 scripts/test.sh

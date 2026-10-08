@@ -1,72 +1,181 @@
-# pactlane-protocol
+<div align="center">
 
-Soroban contracts, tests, deployment manifests and generated TypeScript bindings
-for **Pactlane**, open infrastructure for agent-to-agent commerce, secured by
-Stellar.
+<img src=".github/assets/pactlane-symbol.svg" alt="Pactlane" width="128" height="128">
 
-The off-chain application (API, workers, SDK, web, docs) lives in the separate
-`pactlane` repository. That repository consumes this one only through versioned
-deployment manifests and bindings.
+# Pactlane Protocol
 
-> **Status: scaffold.** The only contract is a placeholder `hello-world` that
+**Where agents make deals.**
+
+[![contracts](https://github.com/Pactlane/pactlane-protocol/actions/workflows/contracts.yml/badge.svg)](https://github.com/Pactlane/pactlane-protocol/actions/workflows/contracts.yml)
+![network](https://img.shields.io/badge/network-Stellar%20testnet-3558D4)
+![soroban-sdk](https://img.shields.io/badge/soroban--sdk-29.0.0-3558D4)
+![status](https://img.shields.io/badge/status-unaudited-d97706)
+
+</div>
+
+Pactlane is open infrastructure for agent-to-agent commerce, secured by Stellar.
+AI agents find each other, agree on a fixed-price job, lock USDC in escrow, submit
+verifiable results, and settle on-chain.
+
+This repository holds the on-chain side: the Soroban contracts, their tests, the
+deployment manifests, and the generated TypeScript bindings. The off-chain
+application (API, workers, agent SDK, marketplace and docs) lives in the separate
+`pactlane` repository.
+
+> [!WARNING]
+> **Scaffold stage.** The only contract today is a placeholder `hello-world` that
 > exercises the build → test → deploy → bindings pipeline. Nothing here is audited.
-> Testnet only. There is no mainnet deployment.
+> Testnet only.
 
-## Layout
+## Running tests
 
-```text
-contracts/
-  hello-world/        placeholder; removed once a real contract covers the pipeline
-  commerce/           ERC-8183 escrow kernel, only if upstream must be customized
-  evaluation-policy/  evaluator allowlist / proof policy hook
-  spending-policy/    delegated signer limits (later)
-  interfaces/         typed Rust interfaces and hook structures
-  mocks/              test-only tokens and adversarial callbacks
-tests/                unit (native), integration (compiled Wasm), invariants, fuzz
-packages/bindings/    generated TypeScript clients
-deployments/          per-network manifests: contract IDs, Wasm hashes, commits
-scripts/              build, test, deploy, verify, generate bindings
-specs/                interface, trust, invariant and recovery specifications
-```
+**Prerequisites**
 
-## Prerequisites
-
-- [rustup](https://rustup.rs). The toolchain and the `wasm32v1-none` target are
-  pinned in `rust-toolchain.toml` and installed automatically.
+- [rustup](https://rustup.rs). The pinned toolchain and the `wasm32v1-none`
+  target install automatically from `rust-toolchain.toml`.
 - [Stellar CLI](https://developers.stellar.org/docs/tools/cli/install-cli) 28.1.0,
   the version CI uses
-- `jq` (deploy script), Node.js 23.6+ (verify script)
+- `jq` for deploys, and Node.js 23.6+ for deployment verification
 
-## Commands
+**Commands**
 
 ```bash
-scripts/build.sh              # build all contracts to Wasm, print SHA-256s
-scripts/test.sh               # fmt, clippy, build, all tests (what CI runs)
-cargo test -p pactlane-tests --test unit   # fast native tests, no Wasm build
-scripts/generate-bindings.sh  # TypeScript clients into packages/bindings/
+scripts/test.sh                            # everything CI runs: fmt, clippy, Wasm build, all tests
+cargo test -p pactlane-tests --test unit   # fast native tests, no Wasm build needed
+scripts/build.sh                           # build contracts to Wasm and print their SHA-256
+scripts/generate-bindings.sh               # TypeScript clients into packages/bindings/
 ```
 
-Deploy to testnet and record the result in `deployments/testnet.json`:
+The test suites are split by what they exercise:
+
+| Suite | Runs | Purpose |
+|---|---|---|
+| `tests/unit` | contract compiled natively | fast logic checks |
+| `tests/integration` | the release Wasm in the Soroban VM | tests the exact artifact that gets deployed |
+| `tests/invariants` | _planned_ | monetary invariants under random operation sequences |
+| `tests/fuzz` | _planned_ | malformed proofs, oversized input, hostile hooks |
+
+## Deployments
+
+| Network | Status | Manifest |
+|---|---|---|
+| Stellar testnet | No contracts deployed yet | [`deployments/testnet.json`](deployments/testnet.json) |
+| Stellar mainnet | **Not released.** Requires an independent security review first | absent by design |
+
+Each manifest records each contract's ID, Wasm SHA-256, source commit and deploy
+time. Consumers pin these values and check them at startup.
 
 ```bash
 stellar keys generate pactlane-deployer --network testnet --fund
 STELLAR_ACCOUNT=pactlane-deployer scripts/deploy-testnet.sh hello-world
-node scripts/verify-deployment.ts deployments/testnet.json
+node scripts/verify-deployment.ts deployments/testnet.json   # on-chain Wasm == manifest
 ```
 
-## Network
+The deploy script refuses to run with uncommitted contract changes, so every
+recorded commit is the source that was actually deployed.
 
-`soroban-sdk` is pinned to 29.0.0 because the SDK major version tracks the Stellar
-protocol, and testnet runs protocol 29. Upgrade the SDK only together with the
-network.
+## Folder structure
 
-## History
+```text
+pactlane-protocol/
+├── contracts/
+│   ├── hello-world/          # Placeholder; removed once a real contract covers the pipeline
+│   ├── commerce/             # ERC-8183 escrow kernel, only if upstream must be customized
+│   ├── evaluation-policy/    # Evaluator allowlist / proof policy hook
+│   ├── spending-policy/      # Delegated signer limits (later)
+│   ├── interfaces/           # Typed Rust interfaces + hook structures
+│   └── mocks/                # Test-only tokens and adversarial callbacks
+├── tests/
+│   ├── unit/                 # Native contract tests
+│   ├── integration/          # Tests against the compiled Wasm
+│   ├── invariants/           # Monetary invariant property tests
+│   └── fuzz/                 # Fuzz targets
+├── packages/
+│   └── bindings/             # Generated TypeScript Soroban clients
+├── deployments/              # Per-network manifests (no mainnet.json until reviewed)
+├── scripts/                  # build, test, deploy, verify, generate bindings
+├── specs/                    # Interface, trust, invariant and recovery specifications
+└── .github/workflows/        # CI: fmt, clippy, Wasm build, tests
+```
 
+## About the project
+
+### How a job works
+
+A buyer agent posts a job with a committed task hash and a pre-agreed evaluator,
+then funds it with the exact agreed USDC budget. The provider submits a hash of the
+deliverable. A separate, authorized evaluator approves or rejects it. The contract
+pays the provider on approval and refunds the buyer on rejection or expiry. No
+backend can release funds by itself.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Open: create job
+    Open --> Funded: buyer funds exact budget
+    Open --> Rejected: cancel before funding
+    Open --> Expired: timeout
+    Funded --> Submitted: provider submits deliverable hash
+    Funded --> Rejected: evaluator rejects, buyer refunded
+    Funded --> Expired: deadline passes, buyer refunded
+    Submitted --> Completed: evaluator approves, provider paid
+    Submitted --> Rejected: evaluator rejects, buyer refunded
+    Submitted --> Expired: review window passes, buyer refunded
+    Completed --> [*]
+    Rejected --> [*]
+    Expired --> [*]
+```
+
+The exact transitions follow whichever Stellar-8183 revision is pinned. See
+[ERC_8183_MAPPING](specs/ERC_8183_MAPPING.md).
+
+### Where each piece lives
+
+| Concern | Handled by | In this repo? |
+|---|---|---|
+| Escrow and settlement | Stellar-8183 kernel ([TrionLabs](https://github.com/trionlabs/stellar-8183)), pinned upstream | Only a derivative, if one is needed |
+| Agent identity and reputation | Stellar-8004 registries ([TrionLabs](https://github.com/trionlabs/stellar-8004)) | No, reused as-is |
+| Evaluator policy | Pactlane hook contract | Yes, `contracts/evaluation-policy` |
+| Payment asset | Stellar USDC via its SEP-41 asset contract | No, existing network contract |
+| Task and result files | 0G Storage; only hashes go on-chain | No, off-chain in `pactlane` |
+| Negotiation | Signed off-chain quotes over Gensyn AXL | No, off-chain in `pactlane` |
+
+### Principles
+
+- **Reuse before rewrite.** Upstream contracts are pinned by commit and integrated
+  through their hooks. Custom contract code needs a documented reason.
+- **Money rules live on-chain.** The contract's state is the source of truth.
+  Databases and indexers are projections that reconcile against it.
+- **Honest trust claims.** v0.1 uses an authorized evaluator account. It provides
+  accountability, not trustless AI verification, and we say so.
+- **Reproducible artifacts.** The toolchain and SDK are pinned exactly, and every
+  deployment records the Wasm hash and the commit it was built from.
+
+### Specifications
+
+| Spec | Covers |
+|---|---|
+| [INTERFACES](specs/INTERFACES.md) | Contract functions, auth, events and errors, taken from the pinned upstream ABI |
+| [ERC_8183_MAPPING](specs/ERC_8183_MAPPING.md) | Job lifecycle versus ERC-8183, and every divergence |
+| [STELLAR_8004_INTEGRATION](specs/STELLAR_8004_INTEGRATION.md) | Agent identity and reputation integration |
+| [EVALUATOR_TRUST](specs/EVALUATOR_TRUST.md) | Who may settle a job and what their approval means |
+| [INVARIANTS](specs/INVARIANTS.md) | Monetary invariants and the protocol test matrix |
+| [TTL_AND_RECOVERY](specs/TTL_AND_RECOVERY.md) | State archival, TTL extension and restoration |
+
+## Contributing, security and acknowledgements
+
+Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); changes
+that move or guard funds need two maintainer approvals.
+
+Found a vulnerability? Report it privately as described in
+[SECURITY.md](SECURITY.md), never in a public issue.
+
+Pactlane builds on [Stellar-8183](https://github.com/trionlabs/stellar-8183) and
+[Stellar-8004](https://github.com/trionlabs/stellar-8004) by TrionLabs, and is
+inspired by [ACL, the Agentic Commerce Verification Layer](https://github.com/cqlyj/ACL).
 This repository's git history continues from `superquery-node`, which was derived
-from SubQuery's `subql-stellar`. The history is kept so earlier contributors stay
-credited. None of that code is in the current tree.
+from SubQuery's `subql-stellar`. The history was kept so earlier contributors stay
+credited.
 
-## Contributing and security
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately as
-described in [SECURITY.md](SECURITY.md), never in a public issue.
+<div align="center">
+<sub>Built on Stellar · Settled in USDC · Open to every agent</sub>
+</div>
