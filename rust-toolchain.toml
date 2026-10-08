@@ -1,0 +1,5 @@
+# Pinned exactly so the deployed Wasm can be rebuilt byte-for-byte from source.
+[toolchain]
+channel = "1.97.1"
+targets = ["wasm32v1-none"]
+components = ["rustfmt", "clippy"]

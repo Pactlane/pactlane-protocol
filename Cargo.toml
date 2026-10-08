@@ -1,0 +1,35 @@
+[workspace]
+resolver = "2"
+# Listed explicitly rather than `contracts/*`: the planned contract directories
+# hold only a README until their milestone, and a glob member without a
+# Cargo.toml fails the whole workspace.
+members = [
+  "contracts/hello-world",
+  "tests",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+# The SDK major version tracks the Stellar protocol version. Testnet runs
+# protocol 29 (checked 2026-10-08); a newer SDK would produce Wasm that testnet
+# rejects.
+soroban-sdk = "29.0.0"
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+
+# https://developers.stellar.org/docs/build/guides/testing/logging
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true

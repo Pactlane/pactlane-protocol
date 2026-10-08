@@ -1,0 +1,16 @@
+[package]
+name = "hello-world"
+description = "Placeholder contract that proves the build, test, deploy and bindings pipeline."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["lib", "cdylib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

@@ -1,0 +1,13 @@
+/target/
+**/*.rs.bk
+
+# Local Stellar CLI config can hold secret keys.
+.stellar/
+.soroban/
+.env
+.env.*
+
+# Generated bindings are released per version, not committed from local runs.
+packages/bindings/*/
+!packages/bindings/README.md
+node_modules/

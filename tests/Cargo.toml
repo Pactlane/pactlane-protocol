@@ -1,0 +1,22 @@
+[package]
+name = "pactlane-tests"
+description = "Workspace-level contract tests: unit, integration, and later invariants and fuzz."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+autotests = false
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+hello-world = { path = "../contracts/hello-world" }
+
+# Contract logic compiled natively; fast, no Wasm build required.
+[[test]]
+name = "unit"
+path = "unit/main.rs"
+
+# The compiled Wasm artifact, i.e. what actually gets deployed. Requires
+# `scripts/build.sh` first.
+[[test]]
+name = "integration"
+path = "integration/main.rs"
