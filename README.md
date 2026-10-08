@@ -42,7 +42,7 @@ specs/                interface, trust, invariant and recovery specifications
 ```bash
 scripts/build.sh              # build all contracts to Wasm, print SHA-256s
 scripts/test.sh               # fmt, clippy, build, all tests (what CI runs)
-cargo test --test unit        # fast native tests, no Wasm build needed
+cargo test -p pactlane-tests --test unit   # fast native tests, no Wasm build
 scripts/generate-bindings.sh  # TypeScript clients into packages/bindings/
 ```
 
