@@ -1,0 +1,32 @@
+name: contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Installs the exact toolchain and wasm target pinned in rust-toolchain.toml.
+      - run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      # The action's tag is the CLI version it installs. Keep it in step with the
+      # version README.md tells contributors to use.
+      - uses: stellar/stellar-cli@v28.1.0
+
+      - run: scripts/test.sh
+
+      - name: Upload Wasm artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm
+          path: target/wasm32v1-none/release/*.wasm
