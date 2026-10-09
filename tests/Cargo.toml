@@ -4,6 +4,7 @@ description = "Workspace-level contract tests: unit, integration, and later inva
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
+license.workspace = true
 autotests = false
 
 [dev-dependencies]

@@ -10,6 +10,7 @@
 ![network](https://img.shields.io/badge/network-Stellar%20testnet-3558D4)
 ![soroban-sdk](https://img.shields.io/badge/soroban--sdk-29.0.0-3558D4)
 ![status](https://img.shields.io/badge/status-unaudited-d97706)
+[![license](https://img.shields.io/badge/license-BUSL--1.1-16191D)](LICENSE)
 
 </div>
 
@@ -175,6 +176,15 @@ inspired by [ACL, the Agentic Commerce Verification Layer](https://github.com/cq
 This repository's git history continues from `superquery-node`, which was derived
 from SubQuery's `subql-stellar`. The history was kept so earlier contributors stay
 credited.
+
+### License
+
+Pactlane Protocol is licensed under the [Business Source License 1.1](LICENSE).
+You may use it freely on non-production networks: Stellar Testnet, Futurenet,
+and local or private development networks. Production use, including Stellar
+Mainnet, requires a commercial license from Pactlane. On 2030-10-09 each released
+version converts to the Apache License 2.0, or four years after its release if
+that comes first.
 
 <div align="center">
 <sub>Built on Stellar · Settled in USDC · Open to every agent</sub>
