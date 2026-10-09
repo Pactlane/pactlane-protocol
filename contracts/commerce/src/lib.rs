@@ -8,8 +8,8 @@
 mod storage;
 
 use pactlane_interfaces::{
-    BudgetSet, Error, Job, JobCompleted, JobCreated, JobFunded, JobState, JobSubmitted,
-    PaymentReleased, ProviderSet, MAX_JOB_DURATION,
+    BudgetSet, Error, Job, JobCompleted, JobCreated, JobFunded, JobRejected, JobState,
+    JobSubmitted, PaymentReleased, ProviderSet, Refunded, MAX_JOB_DURATION,
 };
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 
@@ -213,6 +213,56 @@ impl CommerceKernel {
             amount: job.budget,
         }
         .publish(&env);
+        Ok(())
+    }
+
+    /// Ends a job without payment.
+    ///
+    /// While the job is open it holds no funds, and its client may cancel it
+    /// at any time. Once funded, only the evaluator may reject it, and only
+    /// while it is live; the client gets the full budget back.
+    pub fn reject(env: Env, id: u64, reason: Option<BytesN<32>>) -> Result<(), Error> {
+        let mut job = storage::job(&env, id)?;
+        let rejector = match job.state {
+            JobState::Open => job.client.clone(),
+            JobState::Funded | JobState::Submitted => job.evaluator.clone(),
+            JobState::Completed | JobState::Rejected | JobState::Expired => {
+                return Err(Error::BadState)
+            }
+        };
+        rejector.require_auth();
+
+        let refund = job.state.holds_funds();
+        if refund {
+            require_live(&env, &job)?;
+        }
+
+        // State first, transfer second.
+        job.reason = reason.clone();
+        job.state = JobState::Rejected;
+        storage::put_job(&env, &job);
+        if refund {
+            token::TokenClient::new(&env, &storage::token(&env)).transfer(
+                &env.current_contract_address(),
+                &job.client,
+                &job.budget,
+            );
+        }
+
+        JobRejected {
+            id,
+            rejector,
+            reason,
+        }
+        .publish(&env);
+        if refund {
+            Refunded {
+                id,
+                client: job.client,
+                amount: job.budget,
+            }
+            .publish(&env);
+        }
         Ok(())
     }
 
