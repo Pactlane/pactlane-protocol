@@ -8,7 +8,7 @@
 mod storage;
 
 use pactlane_interfaces::{
-    BudgetSet, Error, Job, JobCreated, JobState, ProviderSet, MAX_JOB_DURATION,
+    BudgetSet, Error, Job, JobCreated, JobFunded, JobState, ProviderSet, MAX_JOB_DURATION,
 };
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 
@@ -112,6 +112,45 @@ impl CommerceKernel {
         job.budget = amount;
         storage::put_job(&env, &job);
         BudgetSet { id, actor, amount }.publish(&env);
+        Ok(())
+    }
+
+    /// Moves the agreed budget from the client into escrow.
+    ///
+    /// `expected_budget` is the amount the client agreed to. If the stored
+    /// budget changed before this call landed, funding fails rather than
+    /// taking a different amount.
+    pub fn fund(env: Env, id: u64, expected_budget: i128) -> Result<(), Error> {
+        let mut job = storage::job(&env, id)?;
+        job.client.require_auth();
+
+        require_state(&job, JobState::Open)?;
+        require_live(&env, &job)?;
+        if job.provider.is_none() {
+            return Err(Error::NoProvider);
+        }
+        if job.budget <= 0 {
+            return Err(Error::BadBudget);
+        }
+        if job.budget != expected_budget {
+            return Err(Error::BudgetMismatch);
+        }
+
+        // State first, transfer second.
+        job.state = JobState::Funded;
+        storage::put_job(&env, &job);
+        token::TokenClient::new(&env, &storage::token(&env)).transfer(
+            &job.client,
+            env.current_contract_address(),
+            &job.budget,
+        );
+
+        JobFunded {
+            id,
+            client: job.client,
+            amount: job.budget,
+        }
+        .publish(&env);
         Ok(())
     }
 

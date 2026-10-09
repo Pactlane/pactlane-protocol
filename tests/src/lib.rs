@@ -35,6 +35,9 @@ pub const STARTING_BALANCE: i128 = 1_000 * USDC;
 /// How long jobs opened by [`Setup::open_job`] run: one week.
 pub const JOB_DURATION: u64 = 7 * 24 * 60 * 60;
 
+/// Budget of jobs funded by [`Setup::funded_job`].
+pub const BUDGET: i128 = 4 * USDC;
+
 /// A test environment with a token and four distinct, unrelated accounts.
 pub struct Setup {
     pub env: Env,
@@ -106,6 +109,14 @@ impl Setup {
             &(self.now() + JOB_DURATION),
             &self.hash(1),
         )
+    }
+
+    /// Opens a job, agrees a budget of [`BUDGET`], and funds it.
+    pub fn funded_job(&self, kernel: &CommerceKernelClient) -> u64 {
+        let id = self.open_job(kernel);
+        kernel.set_budget(&id, &self.client, &BUDGET);
+        kernel.fund(&id, &BUDGET);
+        id
     }
 
     /// Like [`Setup::open_job`], but with no provider assigned yet.
