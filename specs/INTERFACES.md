@@ -217,5 +217,48 @@ this document's function list without a compile error.
 
 ## Evaluation policy
 
-Specified in commit 21 of the implementation plan, together with
+A contract used as a job's `evaluator`. Rationale and trust model:
 [EVALUATOR_TRUST.md](EVALUATOR_TRUST.md).
+
+### Functions
+
+| Function | Auth | Requires | Effect / event |
+|---|---|---|---|
+| `__constructor(owner, kernel)` | none | none | Binds the kernel forever; sets the owner |
+| `add_signer(signer)` | owner | not already a signer, otherwise `AlreadySigner` | `signer_added` |
+| `remove_signer(signer)` | owner | is a signer, otherwise `NotSigner` | `signer_removed` |
+| `propose_owner(new_owner)` | owner | none | Records a pending owner; `owner_proposed` |
+| `accept_owner()` | pending owner | a pending owner exists, otherwise `NoPendingOwner` | `owner_changed` |
+| `complete(signer, id, reason)` | `signer` | is a signer · not the job's client or provider, otherwise `SignerConflict` | Calls kernel `complete(id, reason)` as evaluator; `settled` |
+| `reject(signer, id, reason?)` | `signer` | same as `complete` | Calls kernel `reject(id, reason)` as evaluator; `settled` |
+| `is_signer(address) -> bool` · `owner() -> Address` · `kernel() -> Address` | none | | views |
+
+`complete` and `reject` check the signer first, then call the kernel, which
+applies all of its own rules. Kernel errors (codes 1–12) pass through unchanged.
+
+### Errors
+
+Policy codes start at 101 so they can never be confused with kernel codes.
+
+| Code | Name | Meaning |
+|---:|---|---|
+| 101 | `NotSigner` | the address is not in the signer set |
+| 102 | `AlreadySigner` | the address is already a signer |
+| 103 | `SignerConflict` | the signer is the job's client or provider |
+| 104 | `NoPendingOwner` | `accept_owner` with no proposal outstanding |
+
+### Events
+
+| Event | Topics | Data |
+|---|---|---|
+| `signer_added` | signer | none |
+| `signer_removed` | signer | none |
+| `owner_proposed` | owner, pending | none |
+| `owner_changed` | old_owner, new_owner | none |
+| `settled` | id, signer | completed (bool), reason |
+
+### Storage
+
+Owner, pending owner and kernel are instance storage. Each signer is a
+persistent entry. Every write extends what it wrote to the network maximum TTL,
+and a settlement also renews the acting signer's entry.
