@@ -8,8 +8,8 @@
 mod storage;
 
 use pactlane_interfaces::{
-    BudgetSet, Error, Job, JobCreated, JobFunded, JobState, JobSubmitted, ProviderSet,
-    MAX_JOB_DURATION,
+    BudgetSet, Error, Job, JobCompleted, JobCreated, JobFunded, JobState, JobSubmitted,
+    PaymentReleased, ProviderSet, MAX_JOB_DURATION,
 };
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 
@@ -173,6 +173,44 @@ impl CommerceKernel {
             id,
             provider,
             work_hash,
+        }
+        .publish(&env);
+        Ok(())
+    }
+
+    /// Approves submitted work and pays the provider the full budget.
+    ///
+    /// `reason` is the hash of the evaluation evidence; every payout is bound
+    /// to one.
+    pub fn complete(env: Env, id: u64, reason: BytesN<32>) -> Result<(), Error> {
+        let mut job = storage::job(&env, id)?;
+        job.evaluator.require_auth();
+
+        require_state(&job, JobState::Submitted)?;
+        require_live(&env, &job)?;
+        // Submitted implies funded, and funding requires a provider.
+        let provider = job.provider.clone().ok_or(Error::NoProvider)?;
+
+        // State first, transfer second.
+        job.reason = Some(reason.clone());
+        job.state = JobState::Completed;
+        storage::put_job(&env, &job);
+        token::TokenClient::new(&env, &storage::token(&env)).transfer(
+            &env.current_contract_address(),
+            &provider,
+            &job.budget,
+        );
+
+        JobCompleted {
+            id,
+            evaluator: job.evaluator,
+            reason,
+        }
+        .publish(&env);
+        PaymentReleased {
+            id,
+            provider,
+            amount: job.budget,
         }
         .publish(&env);
         Ok(())
