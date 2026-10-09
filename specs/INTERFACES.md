@@ -162,8 +162,13 @@ and the transaction landing.
 
 With the network maximum at about 180 days and jobs capped at 90, a live job's
 entry cannot archive between its last write and its expiry. Terminal jobs may
-archive later. Their history remains in events, and `get_job` works again after
-restoration.
+archive later. Their history remains in events.
+
+Archival never strands funds. When a transaction touches an archived persistent
+entry, the host restores it automatically and charges a restore fee
+(soroban-env-host 29, `handle_maybe_expired_entry`). TTL management keeps live
+jobs off that path, so settling one never costs a restore and indexers can always
+read it.
 
 ### Errors
 

@@ -3,13 +3,18 @@
 //! `specs/INTERFACES.md` is the source of truth; this crate implements it.
 //! There is deliberately no admin, upgrade, pause or hook: once deployed, the
 //! rules below are the only way escrowed funds move.
+//!
+//! Every function that moves tokens writes the job's new state first and
+//! transfers second. Soroban also forbids a contract from being re-entered.
 #![no_std]
 
 mod storage;
 
+pub use storage::DataKey;
+
 use pactlane_interfaces::{
-    BudgetSet, Error, Job, JobCompleted, JobCreated, JobExpired, JobFunded, JobRejected, JobState,
-    JobSubmitted, PaymentReleased, ProviderSet, Refunded, MAX_JOB_DURATION,
+    BudgetSet, Commerce, Error, Job, JobCompleted, JobCreated, JobExpired, JobFunded, JobRejected,
+    JobState, JobSubmitted, PaymentReleased, ProviderSet, Refunded, MAX_JOB_DURATION,
 };
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 
@@ -26,9 +31,14 @@ impl CommerceKernel {
         token::TokenClient::new(&env, &token).decimals();
         storage::set_token(&env, &token);
     }
+}
 
+// Implementing the shared trait means the exported ABI cannot drift from the
+// interface other contracts compile against.
+#[contractimpl]
+impl Commerce for CommerceKernel {
     /// Opens a job. The evaluator is fixed here for the job's whole life.
-    pub fn create_job(
+    fn create_job(
         env: Env,
         client: Address,
         provider: Option<Address>,
@@ -78,7 +88,7 @@ impl CommerceKernel {
     }
 
     /// Assigns the provider of an open job that has none yet.
-    pub fn set_provider(env: Env, id: u64, provider: Address) -> Result<(), Error> {
+    fn set_provider(env: Env, id: u64, provider: Address) -> Result<(), Error> {
         let mut job = storage::job(&env, id)?;
         job.client.require_auth();
 
@@ -97,7 +107,7 @@ impl CommerceKernel {
 
     /// Proposes the job's budget. Either party may propose, and a later
     /// proposal replaces an earlier one; `fund` is where the client agrees.
-    pub fn set_budget(env: Env, id: u64, actor: Address, amount: i128) -> Result<(), Error> {
+    fn set_budget(env: Env, id: u64, actor: Address, amount: i128) -> Result<(), Error> {
         let mut job = storage::job(&env, id)?;
         actor.require_auth();
 
@@ -121,7 +131,7 @@ impl CommerceKernel {
     /// `expected_budget` is the amount the client agreed to. If the stored
     /// budget changed before this call landed, funding fails rather than
     /// taking a different amount.
-    pub fn fund(env: Env, id: u64, expected_budget: i128) -> Result<(), Error> {
+    fn fund(env: Env, id: u64, expected_budget: i128) -> Result<(), Error> {
         let mut job = storage::job(&env, id)?;
         job.client.require_auth();
 
@@ -137,7 +147,6 @@ impl CommerceKernel {
             return Err(Error::BudgetMismatch);
         }
 
-        // State first, transfer second.
         job.state = JobState::Funded;
         storage::put_job(&env, &job);
         token::TokenClient::new(&env, &storage::token(&env)).transfer(
@@ -156,7 +165,7 @@ impl CommerceKernel {
     }
 
     /// Records the provider's deliverable commitment on a funded job.
-    pub fn submit(env: Env, id: u64, work_hash: BytesN<32>) -> Result<(), Error> {
+    fn submit(env: Env, id: u64, work_hash: BytesN<32>) -> Result<(), Error> {
         let mut job = storage::job(&env, id)?;
         // Only an open job can lack a provider, and open jobs cannot be
         // submitted, so this is the state error, not an authorization one.
@@ -182,7 +191,7 @@ impl CommerceKernel {
     ///
     /// `reason` is the hash of the evaluation evidence; every payout is bound
     /// to one.
-    pub fn complete(env: Env, id: u64, reason: BytesN<32>) -> Result<(), Error> {
+    fn complete(env: Env, id: u64, reason: BytesN<32>) -> Result<(), Error> {
         let mut job = storage::job(&env, id)?;
         job.evaluator.require_auth();
 
@@ -191,7 +200,6 @@ impl CommerceKernel {
         // Submitted implies funded, and funding requires a provider.
         let provider = job.provider.clone().ok_or(Error::NoProvider)?;
 
-        // State first, transfer second.
         job.reason = Some(reason.clone());
         job.state = JobState::Completed;
         storage::put_job(&env, &job);
@@ -221,7 +229,7 @@ impl CommerceKernel {
     /// While the job is open it holds no funds, and its client may cancel it
     /// at any time. Once funded, only the evaluator may reject it, and only
     /// while it is live; the client gets the full budget back.
-    pub fn reject(env: Env, id: u64, reason: Option<BytesN<32>>) -> Result<(), Error> {
+    fn reject(env: Env, id: u64, reason: Option<BytesN<32>>) -> Result<(), Error> {
         let mut job = storage::job(&env, id)?;
         let rejector = match job.state {
             JobState::Open => job.client.clone(),
@@ -237,7 +245,6 @@ impl CommerceKernel {
             require_live(&env, &job)?;
         }
 
-        // State first, transfer second.
         job.reason = reason.clone();
         job.state = JobState::Rejected;
         storage::put_job(&env, &job);
@@ -271,7 +278,7 @@ impl CommerceKernel {
     /// Anyone may call this and no signature is needed, so a refund never
     /// depends on any party being online. The money can only go to the
     /// job's client.
-    pub fn claim_refund(env: Env, id: u64) -> Result<(), Error> {
+    fn claim_refund(env: Env, id: u64) -> Result<(), Error> {
         let mut job = storage::job(&env, id)?;
 
         if !job.state.holds_funds() {
@@ -281,7 +288,6 @@ impl CommerceKernel {
             return Err(Error::NotExpired);
         }
 
-        // State first, transfer second.
         job.state = JobState::Expired;
         storage::put_job(&env, &job);
         token::TokenClient::new(&env, &storage::token(&env)).transfer(
@@ -300,19 +306,27 @@ impl CommerceKernel {
         Ok(())
     }
 
+    /// Extends a job's storage, and the kernel's, to the maximum TTL.
+    /// Anyone may call it; it changes nothing else.
+    fn extend_ttl(env: Env, id: u64) -> Result<(), Error> {
+        storage::job(&env, id)?;
+        storage::extend_job(&env, id);
+        Ok(())
+    }
+
     /// The job's full record.
-    pub fn get_job(env: Env, id: u64) -> Result<Job, Error> {
+    fn get_job(env: Env, id: u64) -> Result<Job, Error> {
         storage::job(&env, id)
     }
 
-    /// The payment token every job in this deployment uses.
-    pub fn token(env: Env) -> Address {
-        storage::token(&env)
+    /// Number of jobs ever created, which is also the highest job ID.
+    fn job_count(env: Env) -> u64 {
+        storage::job_count(&env)
     }
 
-    /// Number of jobs ever created, which is also the highest job ID.
-    pub fn job_count(env: Env) -> u64 {
-        storage::job_count(&env)
+    /// The payment token every job in this deployment uses.
+    fn token(env: Env) -> Address {
+        storage::token(&env)
     }
 }
 

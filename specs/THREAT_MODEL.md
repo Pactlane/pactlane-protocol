@@ -57,7 +57,7 @@ These are not mitigated by the kernel and must be stated to users.
 | T9 | Unauthorized caller acts for a role | `require_auth` on the role's stored address, never on an argument | commit 15 |
 | T10 | Funding with the wrong token | Token fixed at deploy; clients and manifests check `token()` before funding | commits 6, 18, 28 |
 | T11 | Deployed against a non-token address | Constructor calls `token.decimals()` and fails otherwise | commit 6 |
-| T12 | Live job's storage archives and funds become unreachable | TTL extended to the network maximum on every write; jobs capped at 90 days, half the maximum TTL | commits 14, 20 |
+| T12 | Live job's storage archives, making settlement slower and costlier | TTL extended to the network maximum on every write; jobs capped at 90 days, half the maximum TTL. Archival cannot strand funds: the host restores a touched archived entry automatically, at a fee. | commit 14 (remaining TTL on day 90), commit 20 |
 | T13 | Archived job entry is treated as missing and recreated | Soroban never presents an archived persistent entry as absent; it must be restored before use. Job IDs come from a monotonic counter and are never reused. | commit 20 |
 | T14 | Authorization replayed on another network | Soroban signatures commit to the network passphrase, and kernel IDs differ per network | documented; commit 30 checks the manifest |
 | T15 | Arithmetic overflow | `i128` budgets; release profile keeps `overflow-checks = true`; job counter fails with `IdOverflow` | commits 7, B2 |
