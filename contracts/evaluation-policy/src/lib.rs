@@ -13,7 +13,7 @@ mod storage;
 pub use storage::DataKey;
 
 use pactlane_interfaces::CommerceClient;
-use soroban_sdk::{contract, contracterror, contractevent, contractimpl, Address, Env};
+use soroban_sdk::{contract, contracterror, contractevent, contractimpl, Address, BytesN, Env};
 
 /// Policy errors. Codes start at 101 so they can never be mistaken for the
 /// kernel's codes (1-12), which pass through settlement unchanged.
@@ -61,6 +61,20 @@ pub struct OwnerChanged {
     pub old_owner: Address,
     #[topic]
     pub new_owner: Address,
+}
+
+/// One settlement, attributed to the signer who made it. The kernel's own
+/// events only show the policy as evaluator.
+#[contractevent(topics = ["settled"], sparse = false)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Settled {
+    #[topic]
+    pub id: u64,
+    #[topic]
+    pub signer: Address,
+    /// True for `complete`, false for `reject`.
+    pub completed: bool,
+    pub reason: Option<BytesN<32>>,
 }
 
 #[contract]
@@ -130,6 +144,48 @@ impl EvaluationPolicy {
         Ok(())
     }
 
+    /// Approves job `id` and pays its provider, as this policy.
+    ///
+    /// The kernel applies all of its own rules; its errors pass through.
+    pub fn complete(
+        env: Env,
+        signer: Address,
+        id: u64,
+        reason: BytesN<32>,
+    ) -> Result<(), PolicyError> {
+        let kernel = authorize_settlement(&env, &signer, id)?;
+        kernel.complete(&id, &reason);
+        Settled {
+            id,
+            signer,
+            completed: true,
+            reason: Some(reason),
+        }
+        .publish(&env);
+        Ok(())
+    }
+
+    /// Rejects job `id` and refunds its client, as this policy.
+    ///
+    /// The kernel applies all of its own rules; its errors pass through.
+    pub fn reject(
+        env: Env,
+        signer: Address,
+        id: u64,
+        reason: Option<BytesN<32>>,
+    ) -> Result<(), PolicyError> {
+        let kernel = authorize_settlement(&env, &signer, id)?;
+        kernel.reject(&id, &reason);
+        Settled {
+            id,
+            signer,
+            completed: false,
+            reason,
+        }
+        .publish(&env);
+        Ok(())
+    }
+
     /// Whether `address` may currently settle jobs for this policy.
     pub fn is_signer(env: Env, address: Address) -> bool {
         storage::is_signer(&env, &address)
@@ -144,4 +200,30 @@ impl EvaluationPolicy {
     pub fn kernel(env: Env) -> Address {
         storage::kernel(&env)
     }
+}
+
+/// Checks that `signer` signed, is in the signer set, and is neither the job's
+/// client nor its provider. Returns a client for the bound kernel.
+///
+/// The kernel only sees this policy as the evaluator, so it cannot tell when
+/// the person behind the signature is a party to the job. Without this check
+/// a provider who is also a signer could approve its own work (threat T1).
+fn authorize_settlement<'a>(
+    env: &'a Env,
+    signer: &Address,
+    id: u64,
+) -> Result<CommerceClient<'a>, PolicyError> {
+    signer.require_auth();
+    if !storage::is_signer(env, signer) {
+        return Err(PolicyError::NotSigner);
+    }
+
+    let kernel = CommerceClient::new(env, &storage::kernel(env));
+    let job = kernel.get_job(&id);
+    if &job.client == signer || job.provider.as_ref() == Some(signer) {
+        return Err(PolicyError::SignerConflict);
+    }
+
+    storage::extend_signer(env, signer);
+    Ok(kernel)
 }

@@ -153,6 +153,25 @@ impl Setup {
         id
     }
 
+    /// A funded job like [`Setup::funded_job`], but evaluated by `evaluator`,
+    /// for example an evaluation policy.
+    pub fn funded_job_evaluated_by(
+        &self,
+        kernel: &CommerceKernelClient,
+        evaluator: &Address,
+    ) -> u64 {
+        let id = kernel.create_job(
+            &self.client,
+            &Some(self.provider.clone()),
+            evaluator,
+            &(self.now() + JOB_DURATION),
+            &self.hash(1),
+        );
+        kernel.set_budget(&id, &self.client, &BUDGET);
+        kernel.fund(&id, &BUDGET);
+        id
+    }
+
     /// A funded job whose provider has submitted work hash `hash(2)`.
     pub fn submitted_job(&self, kernel: &CommerceKernelClient) -> u64 {
         let id = self.funded_job(kernel);
