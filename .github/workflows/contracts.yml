@@ -9,24 +9,34 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # Installs the exact toolchain and wasm target pinned in rust-toolchain.toml.
-      - run: rustup toolchain install
-
+      - run: rustup toolchain install # pinned in rust-toolchain.toml
       - uses: Swatinem/rust-cache@v2
+      - run: cargo build --workspace --all-targets
 
-      # The action's tag is the CLI version it installs. Keep it in step with the
-      # version README.md tells contributors to use.
+  soroban-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
       - uses: stellar/stellar-cli@v28.1.0
-
-      - run: scripts/test.sh
-
-      - name: Upload Wasm artifacts
-        uses: actions/upload-artifact@v4
+      - run: stellar contract build
+      - uses: actions/upload-artifact@v4
         with:
           name: wasm
           path: target/wasm32v1-none/release/*.wasm
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - uses: stellar/stellar-cli@v28.1.0
+      # Integration tests load the release Wasm, so build it first.
+      - run: stellar contract build
+      - run: cargo test --workspace
