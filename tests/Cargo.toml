@@ -1,6 +1,6 @@
 [package]
 name = "pactlane-tests"
-description = "Workspace-level contract tests: unit, integration, and later invariants and fuzz."
+description = "Workspace-level contract tests: unit, integration and invariants."
 version.workspace = true
 edition.workspace = true
 publish.workspace = true
@@ -16,7 +16,6 @@ pactlane-evaluation-policy = { path = "../contracts/evaluation-policy" }
 pactlane-interfaces = { path = "../contracts/interfaces" }
 
 [dev-dependencies]
-hello-world = { path = "../contracts/hello-world" }
 proptest = "1.11.0"
 
 # Contract logic compiled natively; fast, no Wasm build required.

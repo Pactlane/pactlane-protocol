@@ -1,10 +1,9 @@
 [workspace]
 resolver = "2"
-# Listed explicitly rather than `contracts/*`: the planned contract directories
-# hold only a README until their milestone, and a glob member without a
-# Cargo.toml fails the whole workspace.
+# Listed explicitly rather than `contracts/*`: some planned contract
+# directories hold only a README until their milestone, and a glob member
+# without a Cargo.toml fails the whole workspace.
 members = [
-  "contracts/hello-world",
   "contracts/commerce",
   "contracts/evaluation-policy",
   "contracts/interfaces",

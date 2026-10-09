@@ -24,9 +24,9 @@ application (API, workers, agent SDK, marketplace and docs) lives in the separat
 `pactlane` repository.
 
 > [!WARNING]
-> **Scaffold stage.** The only contract today is a placeholder `hello-world` that
-> exercises the build → test → deploy → bindings pipeline. Nothing here is audited.
-> Testnet only.
+> **Unaudited, testnet only.** The commerce kernel and evaluation policy are
+> implemented and tested, but have not had an independent security review. Do not
+> use them with real funds.
 
 ## Running tests
 
@@ -53,7 +53,7 @@ The test suites are split by what they exercise:
 |---|---|---|
 | `tests/unit` | contract compiled natively | fast logic checks |
 | `tests/integration` | the release Wasm in the Soroban VM | tests the exact artifact that gets deployed |
-| `tests/invariants` | _planned_ | monetary invariants under random operation sequences |
+| `tests/invariants` | random operation sequences (`proptest`) | money is conserved and every settlement follows the rules, after every step |
 | `tests/fuzz` | _planned_ | malformed proofs, oversized input, hostile hooks |
 
 ## Deployments
@@ -85,11 +85,10 @@ recorded commit is the source that was actually deployed.
 ```text
 pactlane-protocol/
 ├── contracts/
-│   ├── hello-world/          # Placeholder; removed once a real contract covers the pipeline
 │   ├── commerce/             # Pactlane's ERC-8183 escrow kernel
-│   ├── evaluation-policy/    # Evaluator allowlist / proof policy hook
+│   ├── evaluation-policy/    # Rotatable signer set acting as a job's evaluator
 │   ├── spending-policy/      # Delegated signer limits (later)
-│   ├── interfaces/           # Typed Rust interfaces + hook structures
+│   ├── interfaces/           # Shared types, error codes, events, kernel client
 │   └── mocks/                # Test-only tokens and adversarial callbacks
 ├── tests/
 │   ├── unit/                 # Native contract tests

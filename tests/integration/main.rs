@@ -1,6 +1,5 @@
 mod archival;
 mod commerce;
-mod hello_world;
 mod lifecycle;
 
 use std::path::PathBuf;
