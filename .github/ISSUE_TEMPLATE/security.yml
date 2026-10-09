@@ -1,0 +1,17 @@
+name: Security
+description: Report a security vulnerability privately
+labels: ["security"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: "Please do not report security vulnerabilities via public issues. Use the private vulnerability reporting feature instead."
+  - type: markdown
+    attributes:
+      value: "Go to Security > Report a vulnerability: https://github.com/Pactlane/pactlane-protocol/security/advisories/new"
+  - type: checkboxes
+    attributes:
+      label: Confirm
+      options:
+        - label: I understand this is for private reporting only
+          required: true
