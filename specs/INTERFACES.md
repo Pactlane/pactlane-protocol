@@ -189,8 +189,13 @@ Failed `require_auth` is a host error, not one of these codes.
 ### Events
 
 Each event's first topic is its name. Every event carries the job `id` as a topic.
-Payload fields are append-only; removing or retyping one requires a new kernel
-version.
+Data is a map keyed by field name. Events with an optional field (`job_created`,
+`job_rejected`) always include every key, with void for `None`. Payload fields are
+append-only; removing or retyping one requires a new kernel version.
+
+The Rust definitions live in `contracts/interfaces`, which also holds the
+`Commerce` trait. The kernel implements that trait, so its ABI cannot drift from
+this document's function list without a compile error.
 
 | Event | Topics | Data |
 |---|---|---|

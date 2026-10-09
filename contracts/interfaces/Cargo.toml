@@ -1,0 +1,13 @@
+[package]
+name = "pactlane-interfaces"
+description = "Types, error codes, events and the client trait of the Pactlane commerce kernel."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
