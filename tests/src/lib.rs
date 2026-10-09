@@ -6,9 +6,9 @@
 
 use pactlane_commerce::{CommerceKernel, CommerceKernelClient};
 use soroban_sdk::{
-    testutils::{Address as _, Ledger},
+    testutils::{Address as _, AuthorizedFunction, ContractEvents, Events, Ledger},
     token::{StellarAssetClient, TokenClient},
-    Address, BytesN, Env,
+    Address, BytesN, Env, Symbol,
 };
 
 /// Ledger time at the start of every test: 2027-01-15T08:00:00Z.
@@ -31,6 +31,9 @@ pub const USDC: i128 = 10_000_000;
 
 /// What the client holds when a test starts.
 pub const STARTING_BALANCE: i128 = 1_000 * USDC;
+
+/// How long jobs opened by [`Setup::open_job`] run: one week.
+pub const JOB_DURATION: u64 = 7 * 24 * 60 * 60;
 
 /// A test environment with a token and four distinct, unrelated accounts.
 pub struct Setup {
@@ -91,6 +94,47 @@ impl Setup {
             .env
             .register(CommerceKernel, (self.token.address.clone(),));
         CommerceKernelClient::new(&self.env, &id)
+    }
+
+    /// Opens a job between the fixture's client, provider and evaluator that
+    /// expires [`JOB_DURATION`] from now. Returns its ID.
+    pub fn open_job(&self, kernel: &CommerceKernelClient) -> u64 {
+        kernel.create_job(
+            &self.client,
+            &Some(self.provider.clone()),
+            &self.evaluator,
+            &(self.now() + JOB_DURATION),
+            &self.hash(1),
+        )
+    }
+
+    /// Asserts that the last call required exactly one signature: `signer`'s,
+    /// for `function` on `contract`.
+    pub fn assert_authorized_by(&self, signer: &Address, contract: &Address, function: &str) {
+        let auths = self.env.auths();
+        assert_eq!(
+            auths.len(),
+            1,
+            "expected exactly one authorizer, got {auths:?}"
+        );
+        let (who, invocation) = &auths[0];
+        assert_eq!(who, signer, "wrong authorizer");
+        match &invocation.function {
+            AuthorizedFunction::Contract((address, name, _)) => {
+                assert_eq!(address, contract, "authorized the wrong contract");
+                assert_eq!(
+                    name,
+                    &Symbol::new(&self.env, function),
+                    "authorized the wrong function"
+                );
+            }
+            other => panic!("expected a contract call, got {other:?}"),
+        }
+    }
+
+    /// Events `contract` emitted during the last call.
+    pub fn events_of(&self, contract: &Address) -> ContractEvents {
+        self.env.events().all().filter_by_contract(contract)
     }
 
     /// A distinct 32-byte hash for commitments such as `spec_hash`.
