@@ -8,11 +8,11 @@ use pactlane_commerce::{CommerceKernel, CommerceKernelClient};
 use pactlane_evaluation_policy::{EvaluationPolicy, EvaluationPolicyClient};
 use soroban_sdk::{
     testutils::{
-        Address as _, AuthorizedFunction, ContractEvents, EnvTestConfig, Events, Ledger,
-        StellarAssetIssuer,
+        Address as _, AuthorizedFunction, ContractEvents, EnvTestConfig, Events, Ledger, MockAuth,
+        MockAuthInvoke, StellarAssetIssuer,
     },
     token::{StellarAssetClient, TokenClient},
-    Address, BytesN, Env, Symbol,
+    Address, BytesN, Env, Symbol, Val, Vec,
 };
 
 /// Ledger time at the start of every test: 2027-01-15T08:00:00Z.
@@ -212,6 +212,28 @@ impl Setup {
             }
             other => panic!("expected a contract call, got {other:?}"),
         }
+    }
+
+    /// Switches from mocked to enforced authorization with exactly one
+    /// signature: `signer`'s, for `function(args)` on `contract`, with the
+    /// given sub-invocations. Any other signature a call needs will be missing.
+    pub fn sign_only_as(
+        &self,
+        signer: &Address,
+        contract: &Address,
+        function: &str,
+        args: Vec<Val>,
+        sub_invokes: &[MockAuthInvoke],
+    ) {
+        self.env.mock_auths(&[MockAuth {
+            address: signer,
+            invoke: &MockAuthInvoke {
+                contract,
+                fn_name: function,
+                args,
+                sub_invokes,
+            },
+        }]);
     }
 
     /// Events `contract` emitted during the last call.

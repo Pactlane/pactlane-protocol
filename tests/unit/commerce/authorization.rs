@@ -7,10 +7,7 @@
 
 use pactlane_interfaces::{JobState, JobState::*};
 use pactlane_tests::{Setup, BUDGET, JOB_DURATION};
-use soroban_sdk::{
-    testutils::{MockAuth, MockAuthInvoke},
-    Address, IntoVal, Val, Vec,
-};
+use soroban_sdk::{testutils::MockAuthInvoke, Address, IntoVal, Val, Vec};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Role {
@@ -36,8 +33,7 @@ fn address(s: &Setup, role: Role) -> Address {
     }
 }
 
-/// Replaces mocked authorization with exactly one signature: `role`'s, for
-/// `function(args)` on `contract`, with the given sub-invocations.
+/// Enforced authorization with only `role`'s signature.
 fn sign_only_as(
     s: &Setup,
     role: Role,
@@ -46,15 +42,7 @@ fn sign_only_as(
     args: Vec<Val>,
     sub_invokes: &[MockAuthInvoke],
 ) {
-    s.env.mock_auths(&[MockAuth {
-        address: &address(s, role),
-        invoke: &MockAuthInvoke {
-            contract,
-            fn_name: function,
-            args,
-            sub_invokes,
-        },
-    }]);
+    s.sign_only_as(&address(s, role), contract, function, args, sub_invokes);
 }
 
 /// Asserts the outcome of one matrix cell. A refused signer must fail on
