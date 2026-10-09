@@ -1,0 +1,56 @@
+name: release
+
+# Pushing an annotated tag such as v0.1.0-testnet publishes a GitHub release
+# with the contracts' Wasm, their TypeScript bindings and the deployment
+# manifests, plus SHA-256 checksums for all of them. The tag's message becomes
+# the release notes.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # create the release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: rustup toolchain install
+
+      # Keep in step with contracts.yml and the README.
+      - uses: stellar/stellar-cli@v28.1.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # The same gate as every push: nothing is released that fails it.
+      - run: scripts/test.sh
+
+      - name: Package Wasm, bindings and manifests
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          mkdir -p dist
+          cp target/wasm32v1-none/release/*.wasm deployments/*.json dist/
+          scripts/generate-bindings.sh
+          for dir in packages/bindings/*/; do
+            name="$(basename "$dir")"
+            (
+              cd "$dir"
+              npm pkg set name="@pactlane/${name#pactlane-}" version="$version"
+              npm install --ignore-scripts --no-audit --no-fund
+              npm run build
+              npm pack --pack-destination ../../../dist
+            )
+          done
+          (cd dist && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" dist/* --verify-tag --notes-from-tag --prerelease --title "$TAG"
