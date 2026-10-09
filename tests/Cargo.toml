@@ -11,6 +11,8 @@ autotests = false
 # package only ever builds natively, so testutils never reaches a Wasm build.
 [dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+pactlane-commerce = { path = "../contracts/commerce" }
+pactlane-interfaces = { path = "../contracts/interfaces" }
 
 [dev-dependencies]
 hello-world = { path = "../contracts/hello-world" }

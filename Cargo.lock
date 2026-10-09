@@ -1182,6 +1182,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "pactlane-commerce"
+version = "0.0.0"
+dependencies = [
+ "pactlane-interfaces",
+ "soroban-sdk",
+]
+
+[[package]]
 name = "pactlane-interfaces"
 version = "0.0.0"
 dependencies = [
@@ -1193,6 +1201,8 @@ name = "pactlane-tests"
 version = "0.0.0"
 dependencies = [
  "hello-world",
+ "pactlane-commerce",
+ "pactlane-interfaces",
  "soroban-sdk",
 ]
 

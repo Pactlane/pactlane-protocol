@@ -9,4 +9,4 @@ One deployment escrows one token. There is no admin, upgrade, pause or hook: the
 rules in [`specs/INTERFACES.md`](../../specs/INTERFACES.md) are the only way funds
 move.
 
-**Status: specified, not yet implemented** (implementation-plan commits 6–14).
+**Status: in progress** (implementation-plan commits 6–14).

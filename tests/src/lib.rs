@@ -4,6 +4,7 @@
 //! state-archival limits, and a 7-decimal Stellar Asset Contract standing in
 //! for USDC. Fixed values keep test snapshots stable across runs.
 
+use pactlane_commerce::{CommerceKernel, CommerceKernelClient};
 use soroban_sdk::{
     testutils::{Address as _, Ledger},
     token::{StellarAssetClient, TokenClient},
@@ -82,6 +83,14 @@ impl Setup {
             evaluator,
             stranger,
         }
+    }
+
+    /// Deploys a fresh kernel bound to the fixture token.
+    pub fn kernel(&self) -> CommerceKernelClient<'static> {
+        let id = self
+            .env
+            .register(CommerceKernel, (self.token.address.clone(),));
+        CommerceKernelClient::new(&self.env, &id)
     }
 
     /// A distinct 32-byte hash for commitments such as `spec_hash`.

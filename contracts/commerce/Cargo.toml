@@ -1,0 +1,15 @@
+[package]
+name = "pactlane-commerce"
+description = "Pactlane's ERC-8183 escrow kernel."
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["lib", "cdylib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+pactlane-interfaces = { path = "../interfaces" }
