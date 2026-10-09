@@ -21,7 +21,7 @@ stolen, or settled twice), and steps or a test that reproduces it.
 In scope: everything under `contracts/`, the deployment scripts, and the
 deployment manifests.
 
-Out of scope: upstream contracts this project integrates but does not modify
-(Stellar-8183, Stellar-8004, the USDC Stellar Asset Contract). Report those to
+Out of scope: third-party contracts this project integrates but does not modify
+(the Stellar-8004 registries, the USDC Stellar Asset Contract). Report those to
 their maintainers. Report issues in the off-chain application to the `pactlane`
 repository.

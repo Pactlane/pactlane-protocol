@@ -81,7 +81,7 @@ recorded commit is the source that was actually deployed.
 pactlane-protocol/
 ├── contracts/
 │   ├── hello-world/          # Placeholder; removed once a real contract covers the pipeline
-│   ├── commerce/             # ERC-8183 escrow kernel, only if upstream must be customized
+│   ├── commerce/             # Pactlane's ERC-8183 escrow kernel
 │   ├── evaluation-policy/    # Evaluator allowlist / proof policy hook
 │   ├── spending-policy/      # Delegated signer limits (later)
 │   ├── interfaces/           # Typed Rust interfaces + hook structures
@@ -103,47 +103,49 @@ pactlane-protocol/
 
 ### How a job works
 
-A buyer agent posts a job with a committed task hash and a pre-agreed evaluator,
-then funds it with the exact agreed USDC budget. The provider submits a hash of the
-deliverable. A separate, authorized evaluator approves or rejects it. The contract
-pays the provider on approval and refunds the buyer on rejection or expiry. No
-backend can release funds by itself.
+A buyer agent posts a job with a committed task hash and an evaluator who is
+neither the buyer nor the provider. The buyer then funds it with the exact agreed
+USDC budget. The provider submits a hash of the deliverable, and the evaluator
+approves or rejects it. The contract pays the provider on approval and refunds
+the buyer on rejection or expiry. No backend, and no Pactlane key, can release
+funds by itself.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Open: create job
     Open --> Funded: buyer funds exact budget
-    Open --> Rejected: cancel before funding
-    Open --> Expired: timeout
+    Open --> Rejected: buyer cancels, nothing held
     Funded --> Submitted: provider submits deliverable hash
     Funded --> Rejected: evaluator rejects, buyer refunded
-    Funded --> Expired: deadline passes, buyer refunded
+    Funded --> Expired: anyone claims refund after expiry
     Submitted --> Completed: evaluator approves, provider paid
     Submitted --> Rejected: evaluator rejects, buyer refunded
-    Submitted --> Expired: review window passes, buyer refunded
+    Submitted --> Expired: anyone claims refund after expiry
     Completed --> [*]
     Rejected --> [*]
     Expired --> [*]
 ```
 
-The exact transitions follow whichever Stellar-8183 revision is pinned. See
-[ERC_8183_MAPPING](specs/ERC_8183_MAPPING.md).
+Once a job passes its expiry, a refund is the only way forward, so payout and
+refund are never both possible. Full rules are in [INTERFACES](specs/INTERFACES.md).
+Differences from ERC-8183 are in [ERC_8183_MAPPING](specs/ERC_8183_MAPPING.md).
 
 ### Where each piece lives
 
 | Concern | Handled by | In this repo? |
 |---|---|---|
-| Escrow and settlement | Stellar-8183 kernel ([TrionLabs](https://github.com/trionlabs/stellar-8183)), pinned upstream | Only a derivative, if one is needed |
+| Escrow and settlement | Pactlane commerce kernel, our own ERC-8183 implementation | Yes, `contracts/commerce` |
 | Agent identity and reputation | Stellar-8004 registries ([TrionLabs](https://github.com/trionlabs/stellar-8004)) | No, reused as-is |
-| Evaluator policy | Pactlane hook contract | Yes, `contracts/evaluation-policy` |
+| Evaluator policy | A Pactlane contract that acts as a job's evaluator | Yes, `contracts/evaluation-policy` |
 | Payment asset | Stellar USDC via its SEP-41 asset contract | No, existing network contract |
 | Task and result files | 0G Storage; only hashes go on-chain | No, off-chain in `pactlane` |
 | Negotiation | Signed off-chain quotes over Gensyn AXL | No, off-chain in `pactlane` |
 
 ### Principles
 
-- **Reuse before rewrite.** Upstream contracts are pinned by commit and integrated
-  through their hooks. Custom contract code needs a documented reason.
+- **A minimal kernel.** No admin, no upgrades, no pause, no hooks. Once deployed,
+  nobody, Pactlane included, can move escrowed funds outside the published rules.
+  Fixes ship as a new deployment.
 - **Money rules live on-chain.** The contract's state is the source of truth.
   Databases and indexers are projections that reconcile against it.
 - **Honest trust claims.** v0.1 uses an authorized evaluator account. It provides
@@ -155,7 +157,7 @@ The exact transitions follow whichever Stellar-8183 revision is pinned. See
 
 | Spec | Covers |
 |---|---|
-| [INTERFACES](specs/INTERFACES.md) | Contract functions, auth, events and errors, taken from the pinned upstream ABI |
+| [INTERFACES](specs/INTERFACES.md) | Kernel functions, authorization, errors and events: the source of truth |
 | [ERC_8183_MAPPING](specs/ERC_8183_MAPPING.md) | Job lifecycle versus ERC-8183, and every divergence |
 | [STELLAR_8004_INTEGRATION](specs/STELLAR_8004_INTEGRATION.md) | Agent identity and reputation integration |
 | [EVALUATOR_TRUST](specs/EVALUATOR_TRUST.md) | Who may settle a job and what their approval means |
@@ -170,9 +172,11 @@ that move or guard funds need two maintainer approvals.
 Found a vulnerability? Report it privately as described in
 [SECURITY.md](SECURITY.md), never in a public issue.
 
-Pactlane builds on [Stellar-8183](https://github.com/trionlabs/stellar-8183) and
-[Stellar-8004](https://github.com/trionlabs/stellar-8004) by TrionLabs, and is
-inspired by [ACL, the Agentic Commerce Verification Layer](https://github.com/cqlyj/ACL).
+Pactlane implements [ERC-8183](https://ercs.ethereum.org/ERCS/erc-8183) and
+integrates [Stellar-8004](https://github.com/trionlabs/stellar-8004) for agent
+identity. TrionLabs' [Stellar-8183](https://github.com/trionlabs/stellar-8183) was
+a design reference for the kernel. The project is inspired by
+[ACL, the Agentic Commerce Verification Layer](https://github.com/cqlyj/ACL).
 This repository's git history continues from `superquery-node`, which was derived
 from SubQuery's `subql-stellar`. The history was kept so earlier contributors stay
 credited.

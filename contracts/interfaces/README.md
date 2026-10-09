@@ -1,7 +1,8 @@
 # interfaces
 
-Typed Rust interfaces shared by Pactlane contracts and tests: the kernel's client
-interface, hook callback structures, and event payloads.
+Shared types for Pactlane contracts and tests: `Job`, `JobState`, the kernel's
+error codes and events, and a client trait for calling the kernel without linking
+its code.
 
-**Status: not started.** These are written from the **pinned upstream ABI**, never
-from the blueprint's pseudocode. See [`specs/INTERFACES.md`](../../specs/INTERFACES.md).
+**Status: not started.** Mirrors [`specs/INTERFACES.md`](../../specs/INTERFACES.md)
+exactly.

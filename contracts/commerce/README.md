@@ -1,12 +1,12 @@
 # commerce
 
-The ERC-8183-style escrow kernel: create, fund, submit, complete/reject, refund.
+Pactlane's ERC-8183 escrow kernel. A client opens a job, funds it with the exact
+agreed budget, the provider submits a work hash, and an independent evaluator
+releases payment or refunds the client. Anyone can trigger the refund after
+expiry.
 
-**Status: empty, on purpose.** The plan is to use a pinned upstream
-[TrionLabs `stellar-8183`](https://github.com/trionlabs/stellar-8183) deployment.
-Source lands here only if a required behaviour cannot be reached through the
-kernel's hooks. In that case this directory holds an audited derivative, with every
-divergence recorded in [`specs/ERC_8183_MAPPING.md`](../../specs/ERC_8183_MAPPING.md).
+One deployment escrows one token. There is no admin, upgrade, pause or hook: the
+rules in [`specs/INTERFACES.md`](../../specs/INTERFACES.md) are the only way funds
+move.
 
-Gate: blueprint Phase 0. Reproduce upstream's tests and pin a revision before
-deciding.
+**Status: specified, not yet implemented** (implementation-plan commits 6–14).
