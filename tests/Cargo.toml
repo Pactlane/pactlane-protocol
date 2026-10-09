@@ -12,6 +12,7 @@ autotests = false
 [dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
 pactlane-commerce = { path = "../contracts/commerce" }
+pactlane-evaluation-policy = { path = "../contracts/evaluation-policy" }
 pactlane-interfaces = { path = "../contracts/interfaces" }
 
 [dev-dependencies]

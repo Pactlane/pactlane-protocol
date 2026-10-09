@@ -6,6 +6,7 @@ resolver = "2"
 members = [
   "contracts/hello-world",
   "contracts/commerce",
+  "contracts/evaluation-policy",
   "contracts/interfaces",
   "tests",
 ]

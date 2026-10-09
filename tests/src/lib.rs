@@ -5,6 +5,7 @@
 //! for USDC. Fixed values keep test snapshots stable across runs.
 
 use pactlane_commerce::{CommerceKernel, CommerceKernelClient};
+use pactlane_evaluation_policy::{EvaluationPolicy, EvaluationPolicyClient};
 use soroban_sdk::{
     testutils::{
         Address as _, AuthorizedFunction, ContractEvents, EnvTestConfig, Events, Ledger,
@@ -115,6 +116,14 @@ impl Setup {
             .env
             .register(CommerceKernel, (self.token.address.clone(),));
         CommerceKernelClient::new(&self.env, &id)
+    }
+
+    /// Deploys an evaluation policy owned by `owner` and bound to `kernel`.
+    pub fn policy(&self, kernel: &Address, owner: &Address) -> EvaluationPolicyClient<'static> {
+        let id = self
+            .env
+            .register(EvaluationPolicy, (owner.clone(), kernel.clone()));
+        EvaluationPolicyClient::new(&self.env, &id)
     }
 
     /// Deploys a kernel from compiled Wasm, bound to the fixture token. Use
