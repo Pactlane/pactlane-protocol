@@ -27,6 +27,18 @@ pub const MAX_ENTRY_TTL: u32 = 3_110_400;
 pub const MIN_PERSISTENT_ENTRY_TTL: u32 = 120_960;
 pub const MIN_TEMP_ENTRY_TTL: u32 = 720;
 
+/// Testnet per-transaction resource limits, read with `stellar network
+/// settings` on 2026-10-08. A transaction over any of these is rejected.
+pub mod tx_limits {
+    pub const INSTRUCTIONS: i64 = 400_000_000;
+    pub const MEMORY_BYTES: i64 = 41_943_040;
+    pub const DISK_READ_ENTRIES: u32 = 200;
+    pub const DISK_READ_BYTES: u32 = 200_000;
+    pub const WRITE_ENTRIES: u32 = 200;
+    pub const WRITE_BYTES: u32 = 132_096;
+    pub const EVENTS_BYTES: u32 = 16_384;
+}
+
 /// Target ledger close time on testnet, in seconds.
 pub const LEDGER_SECONDS: u64 = 5;
 
@@ -131,6 +143,58 @@ impl Setup {
     pub fn kernel_from_wasm(&self, wasm: &[u8]) -> CommerceKernelClient<'static> {
         let id = self.env.register(wasm, (self.token.address.clone(),));
         CommerceKernelClient::new(&self.env, &id)
+    }
+
+    /// Deploys an evaluation policy from compiled Wasm.
+    pub fn policy_from_wasm(
+        &self,
+        wasm: &[u8],
+        kernel: &Address,
+        owner: &Address,
+    ) -> EvaluationPolicyClient<'static> {
+        let id = self.env.register(wasm, (owner.clone(), kernel.clone()));
+        EvaluationPolicyClient::new(&self.env, &id)
+    }
+
+    /// Asserts the last call used at most a quarter of every testnet
+    /// per-transaction limit, leaving room for fee spikes and future growth.
+    pub fn assert_well_within_tx_limits(&self, operation: &str) {
+        let r = self.env.cost_estimate().resources();
+        let checks: [(&str, i64, i64); 7] = [
+            ("instructions", r.instructions, tx_limits::INSTRUCTIONS),
+            ("memory bytes", r.mem_bytes, tx_limits::MEMORY_BYTES),
+            (
+                "disk read entries",
+                r.disk_read_entries.into(),
+                tx_limits::DISK_READ_ENTRIES.into(),
+            ),
+            (
+                "disk read bytes",
+                r.disk_read_bytes.into(),
+                tx_limits::DISK_READ_BYTES.into(),
+            ),
+            (
+                "write entries",
+                r.write_entries.into(),
+                tx_limits::WRITE_ENTRIES.into(),
+            ),
+            (
+                "write bytes",
+                r.write_bytes.into(),
+                tx_limits::WRITE_BYTES.into(),
+            ),
+            (
+                "event bytes",
+                r.contract_events_size_bytes.into(),
+                tx_limits::EVENTS_BYTES.into(),
+            ),
+        ];
+        for (name, used, limit) in checks {
+            assert!(
+                used * 4 <= limit,
+                "{operation}: {name} {used} exceeds a quarter of the testnet limit {limit}"
+            );
+        }
     }
 
     /// Opens a job between the fixture's client, provider and evaluator that
