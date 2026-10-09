@@ -8,7 +8,8 @@
 mod storage;
 
 use pactlane_interfaces::{
-    BudgetSet, Error, Job, JobCreated, JobFunded, JobState, ProviderSet, MAX_JOB_DURATION,
+    BudgetSet, Error, Job, JobCreated, JobFunded, JobState, JobSubmitted, ProviderSet,
+    MAX_JOB_DURATION,
 };
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 
@@ -149,6 +150,29 @@ impl CommerceKernel {
             id,
             client: job.client,
             amount: job.budget,
+        }
+        .publish(&env);
+        Ok(())
+    }
+
+    /// Records the provider's deliverable commitment on a funded job.
+    pub fn submit(env: Env, id: u64, work_hash: BytesN<32>) -> Result<(), Error> {
+        let mut job = storage::job(&env, id)?;
+        // Only an open job can lack a provider, and open jobs cannot be
+        // submitted, so this is the state error, not an authorization one.
+        let provider = job.provider.clone().ok_or(Error::BadState)?;
+        provider.require_auth();
+
+        require_state(&job, JobState::Funded)?;
+        require_live(&env, &job)?;
+
+        job.work_hash = Some(work_hash.clone());
+        job.state = JobState::Submitted;
+        storage::put_job(&env, &job);
+        JobSubmitted {
+            id,
+            provider,
+            work_hash,
         }
         .publish(&env);
         Ok(())

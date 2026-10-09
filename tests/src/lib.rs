@@ -119,6 +119,13 @@ impl Setup {
         id
     }
 
+    /// A funded job whose provider has submitted work hash `hash(2)`.
+    pub fn submitted_job(&self, kernel: &CommerceKernelClient) -> u64 {
+        let id = self.funded_job(kernel);
+        kernel.submit(&id, &self.hash(2));
+        id
+    }
+
     /// Like [`Setup::open_job`], but with no provider assigned yet.
     pub fn open_job_without_provider(&self, kernel: &CommerceKernelClient) -> u64 {
         kernel.create_job(
