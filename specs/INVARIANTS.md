@@ -1,24 +1,26 @@
 # Invariants
 
-> **Status: draft.** The list comes from the blueprint (§10.4). Every entry needs a
-> test in `tests/invariants/` before v0.1.
+> **Status: v0.1.** The list comes from the blueprint (§10.4). ✅ marks invariants
+> that `tests/invariants/conservation.rs` checks after every step of random
+> operation sequences. The others are covered by the unit tests named in
+> [THREAT_MODEL.md](THREAT_MODEL.md).
 
 ## Monetary invariants
 
-1. Payout plus total refunds never exceed the deposited amount. For v0.1
+1. ✅ Payout plus total refunds never exceed the deposited amount. For v0.1
    fixed-price jobs, there is exactly one terminal transfer of the deposited budget.
-2. No funds leave escrow before completion, rejection or expiry under valid role
+2. ✅ No funds leave escrow before completion, rejection or expiry under valid role
    and timing checks.
-3. Terminal jobs cannot be resubmitted, re-funded, or settled twice.
+3. ✅ Terminal jobs cannot be resubmitted, re-funded, or settled twice.
 4. Spending requires client authorization; submission requires provider
    authorization.
 5. The evaluator is pre-agreed and distinct from the provider. The backend cannot
    forge evaluator approval.
 6. Token contract and network are configured once and immutable per deployed
    kernel.
-7. The funding amount must equal the approved quote, which defends against
+7. ✅ The funding amount must equal the approved quote, which defends against
    budget races.
-8. Every claim or refund follows a rule published before funding.
+8. ✅ Every claim or refund follows a rule published before funding.
 9. Database outages and worker retries can never duplicate settlement.
 10. Signer and policy rotations have a defined, tested effect on existing jobs.
 

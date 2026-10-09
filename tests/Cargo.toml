@@ -16,6 +16,7 @@ pactlane-interfaces = { path = "../contracts/interfaces" }
 
 [dev-dependencies]
 hello-world = { path = "../contracts/hello-world" }
+proptest = "1.11.0"
 
 # Contract logic compiled natively; fast, no Wasm build required.
 [[test]]
@@ -27,3 +28,8 @@ path = "unit/main.rs"
 [[test]]
 name = "integration"
 path = "integration/main.rs"
+
+# Monetary invariants under random operation sequences (specs/INVARIANTS.md).
+[[test]]
+name = "invariants"
+path = "invariants/main.rs"

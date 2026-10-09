@@ -7,7 +7,8 @@
 use pactlane_commerce::{CommerceKernel, CommerceKernelClient};
 use soroban_sdk::{
     testutils::{
-        Address as _, AuthorizedFunction, ContractEvents, Events, Ledger, StellarAssetIssuer,
+        Address as _, AuthorizedFunction, ContractEvents, EnvTestConfig, Events, Ledger,
+        StellarAssetIssuer,
     },
     token::{StellarAssetClient, TokenClient},
     Address, BytesN, Env, Symbol,
@@ -63,7 +64,18 @@ impl Setup {
     /// Mocking lets tests drive any call; tests about authorization assert on
     /// `env.auths()` to check exactly who was required to sign.
     pub fn new() -> Self {
-        let env = Env::default();
+        Self::with_env(Env::default())
+    }
+
+    /// Like [`Setup::new`], but writes no test snapshot. For property tests,
+    /// which build hundreds of environments per test.
+    pub fn without_snapshots() -> Self {
+        Self::with_env(Env::new_with_config(EnvTestConfig {
+            capture_snapshot_at_drop: false,
+        }))
+    }
+
+    fn with_env(env: Env) -> Self {
         env.mock_all_auths();
         env.ledger().with_mut(|ledger| {
             ledger.timestamp = START_TIME;
