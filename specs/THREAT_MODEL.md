@@ -33,9 +33,10 @@ These are not mitigated by the kernel and must be stated to users.
 1. **The evaluator is trusted for the verdict.** A dishonest evaluator can pay
    for bad work or refuse good work. The kernel guarantees only that it cannot
    steal or redirect funds. See [EVALUATOR_TRUST.md](EVALUATOR_TRUST.md).
-2. **The token issuer is trusted.** USDC's issuer can freeze accounts, including
-   the kernel's balance. Funds frozen by the issuer cannot be released by the
-   kernel.
+2. **The token issuer is trusted.** Circle's USDC issuer has `AUTH_REVOCABLE` set
+   and `AUTH_CLAWBACK_ENABLED` unset, on both mainnet and testnet (Horizon,
+   2026-10-09). So it can freeze any balance, including the kernel's, but cannot
+   claw funds back. Frozen funds cannot move until the issuer unfreezes them.
 3. **Stellar validators are trusted** for ledger time, ordering and availability.
    Network configuration (for example, frozen ledger keys) is outside the kernel's
    control.

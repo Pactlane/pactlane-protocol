@@ -1,3 +1,4 @@
+mod attacks;
 mod authorization;
 mod claim_refund;
 mod complete;

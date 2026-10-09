@@ -6,7 +6,9 @@
 
 use pactlane_commerce::{CommerceKernel, CommerceKernelClient};
 use soroban_sdk::{
-    testutils::{Address as _, AuthorizedFunction, ContractEvents, Events, Ledger},
+    testutils::{
+        Address as _, AuthorizedFunction, ContractEvents, Events, Ledger, StellarAssetIssuer,
+    },
     token::{StellarAssetClient, TokenClient},
     Address, BytesN, Env, Symbol,
 };
@@ -43,6 +45,8 @@ pub struct Setup {
     pub env: Env,
     pub token: TokenClient<'static>,
     pub token_admin: StellarAssetClient<'static>,
+    /// The token's classic issuer, for issuer flags such as revocability.
+    pub issuer: StellarAssetIssuer,
     /// Creates and funds jobs. Starts with [`STARTING_BALANCE`].
     pub client: Address,
     /// Does the work. Starts with nothing.
@@ -73,6 +77,7 @@ impl Setup {
         let asset = env.register_stellar_asset_contract_v2(issuer);
         let token = TokenClient::new(&env, &asset.address());
         let token_admin = StellarAssetClient::new(&env, &asset.address());
+        let issuer = asset.issuer();
 
         let client = Address::generate(&env);
         let provider = Address::generate(&env);
@@ -84,6 +89,7 @@ impl Setup {
             env,
             token,
             token_admin,
+            issuer,
             client,
             provider,
             evaluator,
