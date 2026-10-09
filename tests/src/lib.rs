@@ -207,3 +207,55 @@ impl Default for Setup {
         Self::new()
     }
 }
+
+/// Names of the functions a compiled contract exports, sorted, read from the
+/// `contractspecv0` custom section of its Wasm. This is what wallets, bindings
+/// and explorers see, so it is the surface to assert on.
+pub fn exported_functions(wasm: &[u8]) -> std::vec::Vec<std::string::String> {
+    use soroban_sdk::xdr::{Limited, Limits, ReadXdr, ScSpecEntry};
+
+    let spec = custom_section(wasm, "contractspecv0").expect("Wasm has a contract spec");
+    let mut names: std::vec::Vec<_> = ScSpecEntry::read_xdr_iter(&mut Limited::new(
+        std::io::Cursor::new(spec),
+        Limits::none(),
+    ))
+    .filter_map(|entry| match entry.expect("valid spec entry") {
+        ScSpecEntry::FunctionV0(function) => Some(function.name.to_utf8_string_lossy()),
+        _ => None,
+    })
+    .collect();
+    names.sort();
+    names
+}
+
+/// The payload of the Wasm custom section called `name`.
+fn custom_section<'a>(wasm: &'a [u8], name: &str) -> Option<&'a [u8]> {
+    assert_eq!(&wasm[..4], b"\0asm", "not a Wasm module");
+    let mut rest = &wasm[8..]; // magic + version
+    while !rest.is_empty() {
+        let id = rest[0];
+        let (size, read) = leb128_u32(&rest[1..]);
+        let start = 1 + read;
+        let body = &rest[start..start + size as usize];
+        rest = &rest[start + size as usize..];
+        if id == 0 {
+            let (len, read) = leb128_u32(body);
+            if &body[read..read + len as usize] == name.as_bytes() {
+                return Some(&body[read + len as usize..]);
+            }
+        }
+    }
+    None
+}
+
+/// Decodes an unsigned LEB128 value; returns it and the bytes consumed.
+fn leb128_u32(bytes: &[u8]) -> (u32, usize) {
+    let mut value = 0u32;
+    for (i, byte) in bytes.iter().enumerate().take(5) {
+        value |= u32::from(byte & 0x7f) << (7 * i);
+        if byte & 0x80 == 0 {
+            return (value, i + 1);
+        }
+    }
+    panic!("malformed LEB128 in Wasm section header")
+}

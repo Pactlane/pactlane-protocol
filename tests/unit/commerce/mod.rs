@@ -1,3 +1,4 @@
+mod authorization;
 mod claim_refund;
 mod complete;
 mod constructor;

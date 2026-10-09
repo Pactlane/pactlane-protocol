@@ -1,3 +1,4 @@
+mod commerce;
 mod hello_world;
 
 use std::path::PathBuf;
