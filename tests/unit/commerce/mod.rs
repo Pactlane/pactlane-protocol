@@ -7,5 +7,6 @@ mod fund;
 mod reject;
 mod set_budget;
 mod set_provider;
+mod state_machine;
 mod submit;
 mod ttl;
