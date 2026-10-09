@@ -1,3 +1,4 @@
+mod archival;
 mod commerce;
 mod hello_world;
 

@@ -117,6 +117,13 @@ impl Setup {
         CommerceKernelClient::new(&self.env, &id)
     }
 
+    /// Deploys a kernel from compiled Wasm, bound to the fixture token. Use
+    /// this when VM behaviour or the code entry matter, e.g. for archival.
+    pub fn kernel_from_wasm(&self, wasm: &[u8]) -> CommerceKernelClient<'static> {
+        let id = self.env.register(wasm, (self.token.address.clone(),));
+        CommerceKernelClient::new(&self.env, &id)
+    }
+
     /// Opens a job between the fixture's client, provider and evaluator that
     /// expires [`JOB_DURATION`] from now. Returns its ID.
     pub fn open_job(&self, kernel: &CommerceKernelClient) -> u64 {
