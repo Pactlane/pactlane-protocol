@@ -1,8 +1,9 @@
 # deployments
 
 One manifest per network, holding each deployed contract's ID, Wasm SHA-256,
-source commit and deploy time. Consumers check their configured contract IDs
-against these manifests at startup.
+source commit, deploy time, constructor arguments and the toolchain it was built
+with. [`schema.json`](schema.json) defines the format. Consumers check their
+configured contract IDs against these manifests at startup.
 
 - `testnet.json`: written by `scripts/deploy-testnet.sh`, checked by
   `scripts/verify-deployment.ts`.

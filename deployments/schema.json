@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Pactlane/pactlane-protocol/deployments/schema.json",
+  "title": "Pactlane deployment manifest",
+  "description": "Every deployed Pactlane contract on one network: what was deployed, from which source, with which configuration. Consumers pin these values and check them against the chain at startup.",
+  "type": "object",
+  "required": ["schemaVersion", "network", "networkPassphrase", "contracts"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "network": { "enum": ["testnet", "mainnet"] },
+    "networkPassphrase": { "type": "string", "minLength": 1 },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pactlane-commerce": {
+          "$ref": "#/$defs/deployment",
+          "properties": {
+            "constructorArgs": {
+              "type": "object",
+              "required": ["token"],
+              "additionalProperties": false,
+              "properties": { "token": { "$ref": "#/$defs/contractId" } }
+            }
+          }
+        },
+        "pactlane-evaluation-policy": {
+          "$ref": "#/$defs/deployment",
+          "properties": {
+            "constructorArgs": {
+              "type": "object",
+              "required": ["owner", "kernel"],
+              "additionalProperties": false,
+              "properties": {
+                "owner": { "$ref": "#/$defs/address" },
+                "kernel": { "$ref": "#/$defs/contractId" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "contractId": { "type": "string", "pattern": "^C[A-Z2-7]{55}$" },
+    "address": { "type": "string", "pattern": "^[GC][A-Z2-7]{55}$" },
+    "deployment": {
+      "type": "object",
+      "required": ["contractId", "wasmSha256", "gitCommit", "deployedAt", "constructorArgs", "builtWith"],
+      "properties": {
+        "contractId": { "$ref": "#/$defs/contractId" },
+        "wasmSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "gitCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "deployedAt": { "type": "string", "format": "date-time" },
+        "constructorArgs": { "type": "object" },
+        "builtWith": {
+          "type": "object",
+          "required": ["rustc", "stellarCli"],
+          "additionalProperties": false,
+          "properties": {
+            "rustc": { "type": "string" },
+            "stellarCli": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

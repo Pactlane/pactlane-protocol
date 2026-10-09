@@ -1,4 +1,6 @@
 {
+  "$schema": "./schema.json",
+  "schemaVersion": 1,
   "network": "testnet",
   "networkPassphrase": "Test SDF Network ; September 2015",
   "contracts": {}

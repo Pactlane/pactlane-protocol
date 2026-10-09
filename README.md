@@ -63,14 +63,19 @@ The test suites are split by what they exercise:
 | Stellar testnet | No contracts deployed yet | [`deployments/testnet.json`](deployments/testnet.json) |
 | Stellar mainnet | **Not released.** Requires an independent security review first | absent by design |
 
-Each manifest records each contract's ID, Wasm SHA-256, source commit and deploy
-time. Consumers pin these values and check them at startup.
+Each manifest records every contract's ID, Wasm SHA-256, source commit, deploy
+time, constructor arguments and toolchain, following
+[`deployments/schema.json`](deployments/schema.json). Consumers pin these values
+and check them at startup.
 
 ```bash
 stellar keys generate pactlane-deployer --network testnet --fund
-STELLAR_ACCOUNT=pactlane-deployer scripts/deploy-testnet.sh hello-world
+STELLAR_ACCOUNT=pactlane-deployer scripts/deploy-testnet.sh  # kernel + evaluation policy
 node scripts/verify-deployment.ts deployments/testnet.json   # on-chain Wasm == manifest
 ```
+
+The kernel is bound to Circle's testnet USDC. The policy is owned by the
+deployer unless `POLICY_OWNER` is set, and starts with no signers.
 
 The deploy script refuses to run with uncommitted contract changes, so every
 recorded commit is the source that was actually deployed.
