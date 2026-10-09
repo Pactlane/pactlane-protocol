@@ -8,7 +8,7 @@
 mod storage;
 
 use pactlane_interfaces::{
-    BudgetSet, Error, Job, JobCompleted, JobCreated, JobFunded, JobRejected, JobState,
+    BudgetSet, Error, Job, JobCompleted, JobCreated, JobExpired, JobFunded, JobRejected, JobState,
     JobSubmitted, PaymentReleased, ProviderSet, Refunded, MAX_JOB_DURATION,
 };
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
@@ -263,6 +263,40 @@ impl CommerceKernel {
             }
             .publish(&env);
         }
+        Ok(())
+    }
+
+    /// Refunds an expired, funded job to its client.
+    ///
+    /// Anyone may call this and no signature is needed, so a refund never
+    /// depends on any party being online. The money can only go to the
+    /// job's client.
+    pub fn claim_refund(env: Env, id: u64) -> Result<(), Error> {
+        let mut job = storage::job(&env, id)?;
+
+        if !job.state.holds_funds() {
+            return Err(Error::BadState);
+        }
+        if env.ledger().timestamp() < job.expires_at {
+            return Err(Error::NotExpired);
+        }
+
+        // State first, transfer second.
+        job.state = JobState::Expired;
+        storage::put_job(&env, &job);
+        token::TokenClient::new(&env, &storage::token(&env)).transfer(
+            &env.current_contract_address(),
+            &job.client,
+            &job.budget,
+        );
+
+        JobExpired { id }.publish(&env);
+        Refunded {
+            id,
+            client: job.client,
+            amount: job.budget,
+        }
+        .publish(&env);
         Ok(())
     }
 
