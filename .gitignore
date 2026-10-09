@@ -11,3 +11,6 @@
 packages/bindings/*/
 !packages/bindings/README.md
 node_modules/
+
+# Local working plan, not published.
+/impl_plan.md
