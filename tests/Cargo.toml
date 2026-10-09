@@ -7,8 +7,12 @@ publish.workspace = true
 license.workspace = true
 autotests = false
 
-[dev-dependencies]
+# Shared fixtures in src/lib.rs need testutils as a normal dependency. This
+# package only ever builds natively, so testutils never reaches a Wasm build.
+[dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+
+[dev-dependencies]
 hello-world = { path = "../contracts/hello-world" }
 
 # Contract logic compiled natively; fast, no Wasm build required.
