@@ -162,6 +162,7 @@ Differences from ERC-8183 are in [ERC_8183_MAPPING](specs/ERC_8183_MAPPING.md).
 | [STELLAR_8004_INTEGRATION](specs/STELLAR_8004_INTEGRATION.md) | Agent identity and reputation integration |
 | [EVALUATOR_TRUST](specs/EVALUATOR_TRUST.md) | Who may settle a job and what their approval means |
 | [INVARIANTS](specs/INVARIANTS.md) | Monetary invariants and the protocol test matrix |
+| [THREAT_MODEL](specs/THREAT_MODEL.md) | Actors, trust assumptions, and each threat with its mitigation and test |
 | [TTL_AND_RECOVERY](specs/TTL_AND_RECOVERY.md) | State archival, TTL extension and restoration |
 
 ## Contributing, security and acknowledgements
