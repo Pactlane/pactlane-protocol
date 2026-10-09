@@ -108,6 +108,17 @@ impl Setup {
         )
     }
 
+    /// Like [`Setup::open_job`], but with no provider assigned yet.
+    pub fn open_job_without_provider(&self, kernel: &CommerceKernelClient) -> u64 {
+        kernel.create_job(
+            &self.client,
+            &None,
+            &self.evaluator,
+            &(self.now() + JOB_DURATION),
+            &self.hash(1),
+        )
+    }
+
     /// Asserts that the last call required exactly one signature: `signer`'s,
     /// for `function` on `contract`.
     pub fn assert_authorized_by(&self, signer: &Address, contract: &Address, function: &str) {
@@ -133,6 +144,9 @@ impl Setup {
     }
 
     /// Events `contract` emitted during the last call.
+    ///
+    /// Only the most recent invocation counts, so check events before any
+    /// read such as `get_job`, which would replace them with nothing.
     pub fn events_of(&self, contract: &Address) -> ContractEvents {
         self.env.events().all().filter_by_contract(contract)
     }

@@ -7,7 +7,9 @@
 
 mod storage;
 
-use pactlane_interfaces::{Error, Job, JobCreated, JobState, MAX_JOB_DURATION};
+use pactlane_interfaces::{
+    BudgetSet, Error, Job, JobCreated, JobState, ProviderSet, MAX_JOB_DURATION,
+};
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
 
 #[contract]
@@ -74,6 +76,45 @@ impl CommerceKernel {
         Ok(id)
     }
 
+    /// Assigns the provider of an open job that has none yet.
+    pub fn set_provider(env: Env, id: u64, provider: Address) -> Result<(), Error> {
+        let mut job = storage::job(&env, id)?;
+        job.client.require_auth();
+
+        require_state(&job, JobState::Open)?;
+        require_live(&env, &job)?;
+        if job.provider.is_some() {
+            return Err(Error::ProviderAlreadySet);
+        }
+        check_roles(&job.client, Some(&provider), &job.evaluator)?;
+
+        job.provider = Some(provider.clone());
+        storage::put_job(&env, &job);
+        ProviderSet { id, provider }.publish(&env);
+        Ok(())
+    }
+
+    /// Proposes the job's budget. Either party may propose, and a later
+    /// proposal replaces an earlier one; `fund` is where the client agrees.
+    pub fn set_budget(env: Env, id: u64, actor: Address, amount: i128) -> Result<(), Error> {
+        let mut job = storage::job(&env, id)?;
+        actor.require_auth();
+
+        if actor != job.client && Some(&actor) != job.provider.as_ref() {
+            return Err(Error::BadActor);
+        }
+        require_state(&job, JobState::Open)?;
+        require_live(&env, &job)?;
+        if amount <= 0 {
+            return Err(Error::BadBudget);
+        }
+
+        job.budget = amount;
+        storage::put_job(&env, &job);
+        BudgetSet { id, actor, amount }.publish(&env);
+        Ok(())
+    }
+
     /// The job's full record.
     pub fn get_job(env: Env, id: u64) -> Result<Job, Error> {
         storage::job(&env, id)
@@ -87,6 +128,24 @@ impl CommerceKernel {
     /// Number of jobs ever created, which is also the highest job ID.
     pub fn job_count(env: Env) -> u64 {
         storage::job_count(&env)
+    }
+}
+
+fn require_state(job: &Job, expected: JobState) -> Result<(), Error> {
+    if job.state == expected {
+        Ok(())
+    } else {
+        Err(Error::BadState)
+    }
+}
+
+/// A job is live strictly before `expires_at`. From that instant on, only a
+/// refund can act on it, so payout and refund are never both possible.
+fn require_live(env: &Env, job: &Job) -> Result<(), Error> {
+    if env.ledger().timestamp() < job.expires_at {
+        Ok(())
+    } else {
+        Err(Error::Expired)
     }
 }
 
