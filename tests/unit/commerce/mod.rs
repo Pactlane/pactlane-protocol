@@ -19,6 +19,7 @@ mod fund;
 mod fund_negative_expected;
 mod job_count;
 mod job_ids;
+mod late_refund;
 mod many_jobs;
 mod max_duration_lifecycle;
 mod one_second_job;
