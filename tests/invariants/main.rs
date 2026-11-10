@@ -4,3 +4,4 @@
 
 mod conservation;
 mod conservation_terminal;
+mod prop_work_hash;
