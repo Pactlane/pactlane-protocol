@@ -13,8 +13,9 @@ use pactlane_interfaces::{Job, JobState};
 use pactlane_tests::{Setup, JOB_DURATION, STARTING_BALANCE, USDC};
 use proptest::prelude::*;
 
+/// One random kernel operation. Shared with the other property suites.
 #[derive(Clone, Debug)]
-enum Op {
+pub(crate) enum Op {
     Create {
         with_provider: bool,
         duration: u64,
@@ -49,7 +50,7 @@ enum Op {
     },
 }
 
-fn op() -> impl Strategy<Value = Op> {
+pub(crate) fn op() -> impl Strategy<Value = Op> {
     let job = 0..8usize;
     let amount = prop_oneof![
         8 => 1..=50 * USDC,
@@ -81,7 +82,7 @@ fn pick(kernel: &CommerceKernelClient, index: usize) -> Option<u64> {
 /// Applies `op`, ignoring whether the kernel accepted it: refused operations
 /// must leave the invariants intact just as accepted ones must. Returns the
 /// budget a successful `fund` was told to expect.
-fn apply(s: &Setup, kernel: &CommerceKernelClient, op: &Op) -> Option<(u64, i128)> {
+pub(crate) fn apply(s: &Setup, kernel: &CommerceKernelClient, op: &Op) -> Option<(u64, i128)> {
     match *op {
         Op::Create {
             with_provider,
@@ -144,7 +145,7 @@ fn apply(s: &Setup, kernel: &CommerceKernelClient, op: &Op) -> Option<(u64, i128
     None
 }
 
-fn all_jobs(kernel: &CommerceKernelClient) -> BTreeMap<u64, Job> {
+pub(crate) fn all_jobs(kernel: &CommerceKernelClient) -> BTreeMap<u64, Job> {
     (1..=kernel.job_count())
         .map(|id| (id, kernel.get_job(&id)))
         .collect()

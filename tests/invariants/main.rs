@@ -3,3 +3,4 @@
 //! Set `PROPTEST_CASES` to run more sequences than the default.
 
 mod conservation;
+mod conservation_terminal;
