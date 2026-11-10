@@ -1,4 +1,5 @@
 mod governance;
+mod many_clients;
 mod many_signers;
 mod owner_signer;
 mod pending_owner_powerless;
