@@ -1,6 +1,7 @@
 mod governance;
 mod many_signers;
 mod owner_signer;
+mod pending_owner_powerless;
 mod propose_self;
 mod propose_twice;
 mod readd_signer;
