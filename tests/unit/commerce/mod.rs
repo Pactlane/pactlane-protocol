@@ -8,6 +8,7 @@ mod client_revoked;
 mod complete;
 mod constructor;
 mod create_job;
+mod create_roundtrip;
 mod equal_hashes;
 mod evaluator_balance;
 mod event_topics;
