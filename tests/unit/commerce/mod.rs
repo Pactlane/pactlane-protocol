@@ -30,5 +30,6 @@ mod set_provider;
 mod state_machine;
 mod submit;
 mod ttl;
+mod two_kernels;
 mod unknown_ids;
 mod zero_hash;
