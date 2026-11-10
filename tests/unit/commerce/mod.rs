@@ -32,6 +32,7 @@ mod reject;
 mod set_budget;
 mod set_provider;
 mod state_machine;
+mod stranger_balance;
 mod submit;
 mod ttl;
 mod two_kernels;
