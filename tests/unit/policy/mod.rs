@@ -6,4 +6,5 @@ mod propose_self;
 mod propose_twice;
 mod readd_signer;
 mod rotation;
+mod settled_void_reason;
 mod settlement;
