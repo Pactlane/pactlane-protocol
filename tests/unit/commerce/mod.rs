@@ -1,5 +1,6 @@
 mod attacks;
 mod authorization;
+mod budget_extremes;
 mod claim_refund;
 mod complete;
 mod constructor;
