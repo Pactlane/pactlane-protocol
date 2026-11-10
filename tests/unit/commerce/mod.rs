@@ -27,3 +27,4 @@ mod state_machine;
 mod submit;
 mod ttl;
 mod unknown_ids;
+mod zero_hash;
