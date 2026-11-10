@@ -20,6 +20,7 @@ fn the_kernel_exports_exactly_the_specified_functions() {
             "extend_ttl",
             "fund",
             "get_job",
+            "get_jobs",
             "job_count",
             "reject",
             "set_budget",

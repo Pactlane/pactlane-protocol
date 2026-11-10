@@ -21,6 +21,7 @@ mod extend_terminal;
 mod extend_twice;
 mod fund;
 mod fund_negative_expected;
+mod get_jobs;
 mod job_count;
 mod job_ids;
 mod kernel_revoked;

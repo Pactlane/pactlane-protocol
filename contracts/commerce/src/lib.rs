@@ -16,8 +16,9 @@ pub use storage::DataKey;
 use pactlane_interfaces::{
     BudgetSet, Commerce, Error, Job, JobCompleted, JobCreated, JobExpired, JobFunded, JobRejected,
     JobState, JobSubmitted, PaymentReleased, ProviderSet, Refunded, Upgraded, MAX_JOB_DURATION,
+    MAX_PAGE,
 };
-use soroban_sdk::{contract, contractimpl, token, Address, BytesN, ContractExecutable, Env};
+use soroban_sdk::{contract, contractimpl, token, Address, BytesN, ContractExecutable, Env, Vec};
 
 #[contract]
 pub struct CommerceKernel;
@@ -342,6 +343,23 @@ impl Commerce for CommerceKernel {
     /// The job's full record.
     fn get_job(env: Env, id: u64) -> Result<Job, Error> {
         storage::job(&env, id)
+    }
+
+    /// Up to `limit` (at most [`MAX_PAGE`]) consecutive jobs, from ID `start`
+    /// upwards. IDs are dense, so paging from 1 to `job_count` lists every
+    /// job; a start of 0 is read as 1, and a start past the last job returns
+    /// an empty list. Per-address lists are left to event indexers.
+    fn get_jobs(env: Env, start: u64, limit: u32) -> Vec<Job> {
+        let mut jobs = Vec::new(&env);
+        let count = storage::job_count(&env);
+        let mut id = start.max(1);
+        while id <= count && jobs.len() < limit.min(MAX_PAGE) {
+            if let Ok(job) = storage::job(&env, id) {
+                jobs.push_back(job);
+            }
+            id += 1;
+        }
+        jobs
     }
 
     /// Number of jobs ever created, which is also the highest job ID.

@@ -160,6 +160,7 @@ and the transaction landing.
 | Function | Auth | Returns / effect |
 |---|---|---|
 | `get_job(id) -> Job` | none | the job, or `NotFound` |
+| `get_jobs(start: u64, limit: u32) -> Vec<Job>` | none | up to `min(limit, MAX_PAGE = 50)` jobs with IDs from `start` upward (0 reads as 1); empty past the last job. Per-address lists come from events. |
 | `job_count() -> u64` | none | number of jobs ever created |
 | `token() -> Address` | none | the payment token |
 | `admin() -> Address` | none | the key that may `upgrade` |
