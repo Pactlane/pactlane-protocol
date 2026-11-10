@@ -12,6 +12,7 @@ mod events_rejected;
 mod expiry;
 mod fund;
 mod fund_negative_expected;
+mod job_count;
 mod job_ids;
 mod many_jobs;
 mod reject;
