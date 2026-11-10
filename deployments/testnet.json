@@ -6,8 +6,8 @@
   "contracts": {
     "pactlane-commerce": {
       "contractId": "CB3DJM7B7THZYCYINV22NATMRV3AFG4XX7235KYP2VVGOTRG2CGVKIQS",
-      "wasmSha256": "fa5f3356d5e26db85bb34dbbc51a5eb00a1003572208c922f831388dd9eb339e",
-      "gitCommit": "5d71d370546b0609a1fc10bcfabe4f329418e62e",
+      "wasmSha256": "5ebc01577b1b69cb23c1094777d349553436e8f28452af13c87d8b9e675c5f06",
+      "gitCommit": "591d1eb17fa5898b733a31a686d839f0886431d4",
       "deployedAt": "2026-11-10T22:16:48Z",
       "constructorArgs": {
         "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
@@ -16,7 +16,8 @@
       "builtWith": {
         "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
         "stellarCli": "stellar 26.0.0 (60f7458e7ecffddf2f2d91dc6d0d2db4fab03ecc)"
-      }
+      },
+      "upgradedAt": "2026-11-10T22:35:44Z"
     },
     "pactlane-evaluation-policy": {
       "contractId": "CCSAB45Q3NU6M7YLW4WVWC4MPQZZNLWYYBP2SAPSJ7NFBO4YTVDR43D7",
