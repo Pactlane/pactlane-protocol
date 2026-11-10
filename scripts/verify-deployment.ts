@@ -111,6 +111,8 @@ try {
   const kernel = manifest.contracts["pactlane-commerce"];
   if (kernel) {
     expectView("pactlane-commerce", kernel.contractId, "token", kernel.constructorArgs.token);
+    // The admin can upgrade the code, so a different one is a real failure.
+    expectView("pactlane-commerce", kernel.contractId, "admin", kernel.constructorArgs.admin);
   }
 
   const policy = manifest.contracts["pactlane-evaluation-policy"];

@@ -12,8 +12,10 @@ mod storage;
 
 pub use storage::DataKey;
 
-use pactlane_interfaces::CommerceClient;
-use soroban_sdk::{contract, contracterror, contractevent, contractimpl, Address, BytesN, Env};
+use pactlane_interfaces::{CommerceClient, Upgraded};
+use soroban_sdk::{
+    contract, contracterror, contractevent, contractimpl, Address, BytesN, ContractExecutable, Env,
+};
 
 /// Policy errors. Codes start at 101 so they can never be mistaken for the
 /// kernel's codes (1-12), which pass through settlement unchanged.
@@ -184,6 +186,21 @@ impl EvaluationPolicy {
         }
         .publish(&env);
         Ok(())
+    }
+
+    /// Replaces the policy's code with the uploaded Wasm `new_wasm_hash`,
+    /// keeping its address, owner, signers and kernel. Only the owner may
+    /// call it.
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) {
+        let owner = storage::owner(&env);
+        owner.require_auth();
+        Upgraded {
+            admin: owner,
+            wasm_hash: new_wasm_hash.clone(),
+        }
+        .publish(&env);
+        env.deployer()
+            .update_current_contract(ContractExecutable::Wasm(new_wasm_hash));
     }
 
     /// Whether `address` may currently settle jobs for this policy.

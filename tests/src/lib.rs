@@ -69,6 +69,8 @@ pub struct Setup {
     pub evaluator: Address,
     /// Holds no role in any job; used to prove outsiders are refused.
     pub stranger: Address,
+    /// May upgrade kernels deployed by [`Setup::kernel`]. Holds no job role.
+    pub admin: Address,
 }
 
 impl Setup {
@@ -108,6 +110,7 @@ impl Setup {
         let provider = Address::generate(&env);
         let evaluator = Address::generate(&env);
         let stranger = Address::generate(&env);
+        let admin = Address::generate(&env);
         token_admin.mint(&client, &STARTING_BALANCE);
 
         Self {
@@ -119,14 +122,16 @@ impl Setup {
             provider,
             evaluator,
             stranger,
+            admin,
         }
     }
 
     /// Deploys a fresh kernel bound to the fixture token.
     pub fn kernel(&self) -> CommerceKernelClient<'static> {
-        let id = self
-            .env
-            .register(CommerceKernel, (self.token.address.clone(),));
+        let id = self.env.register(
+            CommerceKernel,
+            (self.token.address.clone(), self.admin.clone()),
+        );
         CommerceKernelClient::new(&self.env, &id)
     }
 
@@ -141,7 +146,9 @@ impl Setup {
     /// Deploys a kernel from compiled Wasm, bound to the fixture token. Use
     /// this when VM behaviour or the code entry matter, e.g. for archival.
     pub fn kernel_from_wasm(&self, wasm: &[u8]) -> CommerceKernelClient<'static> {
-        let id = self.env.register(wasm, (self.token.address.clone(),));
+        let id = self
+            .env
+            .register(wasm, (self.token.address.clone(), self.admin.clone()));
         CommerceKernelClient::new(&self.env, &id)
     }
 

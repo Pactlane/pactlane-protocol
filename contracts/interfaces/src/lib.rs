@@ -7,7 +7,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contractclient, contracterror, contractevent, contracttype, Address, BytesN, Env,
+    contractclient, contracterror, contractevent, contracttype, Address, BytesN, Env, Vec,
 };
 
 /// Longest a job may run, in seconds (90 days).
@@ -16,6 +16,10 @@ use soroban_sdk::{
 /// ledgers, about 180 days), so a job's entry, extended on every write, cannot
 /// archive before the job expires.
 pub const MAX_JOB_DURATION: u64 = 90 * 24 * 60 * 60;
+
+/// Most jobs one [`Commerce::get_jobs`] call returns. Fifty job entries stay
+/// far below testnet's per-transaction read limits (200 entries, 200 KB).
+pub const MAX_PAGE: u32 = 50;
 
 /// Where a job is in its lifecycle. `Completed`, `Rejected` and `Expired` are
 /// terminal.
@@ -121,6 +125,7 @@ pub trait Commerce {
     fn claim_refund(env: Env, id: u64) -> Result<(), Error>;
     fn extend_ttl(env: Env, id: u64) -> Result<(), Error>;
     fn get_job(env: Env, id: u64) -> Result<Job, Error>;
+    fn get_jobs(env: Env, start: u64, limit: u32) -> Vec<Job>;
     fn job_count(env: Env) -> u64;
     fn token(env: Env) -> Address;
 }
@@ -215,6 +220,17 @@ pub struct PaymentReleased {
     #[topic]
     pub provider: Address,
     pub amount: i128,
+}
+
+/// The contract's code was replaced. Emitted by the kernel and the
+/// evaluation policy just before the new Wasm takes effect; `admin` is the
+/// key that authorized it.
+#[contractevent(topics = ["upgraded"])]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Upgraded {
+    #[topic]
+    pub admin: Address,
+    pub wasm_hash: BytesN<32>,
 }
 
 #[contractevent(topics = ["refunded"])]

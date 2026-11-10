@@ -147,15 +147,21 @@ Differences from ERC-8183 are in [ERC_8183_MAPPING](specs/ERC_8183_MAPPING.md).
 
 ### Principles
 
-- **A minimal kernel.** No admin, no upgrades, no pause, no hooks. Once deployed,
+- **A minimal kernel.** No pause, no hooks. One admin key can upgrade the code in
+  place, so the contract ID integrators pin never changes; apart from that,
   nobody, Pactlane included, can move escrowed funds outside the published rules.
-  Fixes ship as a new deployment.
+  The admin key is a trust assumption (threat T17) to harden before mainnet.
 - **Money rules live on-chain.** The contract's state is the source of truth.
   Databases and indexers are projections that reconcile against it.
 - **Honest trust claims.** v0.1 uses an authorized evaluator account. It provides
   accountability, not trustless AI verification, and we say so.
 - **Reproducible artifacts.** The toolchain and SDK are pinned exactly, and every
   deployment records the Wasm hash and the commit it was built from.
+
+### Trying it on testnet
+
+[`docs/TESTNET_GUIDE.md`](docs/TESTNET_GUIDE.md): accounts, the USDC trustline,
+faucet USDC, and a first job from the command line.
 
 ### Specifications
 

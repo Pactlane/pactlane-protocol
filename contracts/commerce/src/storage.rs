@@ -17,6 +17,8 @@ pub enum DataKey {
     JobCount,
     /// Persistent: one entry per job.
     Job(u64),
+    /// Instance: the key that may replace the kernel's code.
+    Admin,
 }
 
 pub fn token(env: &Env) -> Address {
@@ -28,6 +30,18 @@ pub fn token(env: &Env) -> Address {
 
 pub fn set_token(env: &Env, token: &Address) {
     env.storage().instance().set(&DataKey::Token, token);
+    extend_instance(env);
+}
+
+pub fn admin(env: &Env) -> Address {
+    env.storage()
+        .instance()
+        .get(&DataKey::Admin)
+        .expect("admin is set by the constructor")
+}
+
+pub fn set_admin(env: &Env, admin: &Address) {
+    env.storage().instance().set(&DataKey::Admin, admin);
     extend_instance(env);
 }
 

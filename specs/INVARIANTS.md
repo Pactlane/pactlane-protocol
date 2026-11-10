@@ -17,7 +17,7 @@
 5. The evaluator is pre-agreed and distinct from the provider. The backend cannot
    forge evaluator approval.
 6. Token contract and network are configured once and immutable per deployed
-   kernel.
+   kernel; an `upgrade` keeps them.
 7. ✅ The funding amount must equal the approved quote, which defends against
    budget races.
 8. ✅ Every claim or refund follows a rule published before funding.

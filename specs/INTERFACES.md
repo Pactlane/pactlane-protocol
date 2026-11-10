@@ -7,9 +7,11 @@
 ## Commerce kernel
 
 One kernel deployment escrows **one** SEP-41 token (testnet USDC) for any number
-of jobs. It has **no admin, no upgrade path, no pause, and no hooks**. Once
-deployed, nobody (including Pactlane) can move escrowed funds except through the
-rules below. Fixes ship as a new deployment with a new contract ID.
+of jobs. It has **no pause and no hooks**. One **admin** key, set at deployment,
+may replace the kernel's code with `upgrade`, keeping its contract ID, every job
+and the escrow, so integrators never re-pin an address. Apart from an upgrade,
+nobody (including Pactlane) can move escrowed funds except through the rules
+below. The admin key is therefore trusted with the escrow (threat T17).
 
 ### Types
 
@@ -66,10 +68,19 @@ call returns the error and changes nothing.
 Checks run in the order listed, after the job is loaded (`NotFound` first), and
 the first failing check decides the error. Tests depend on this order.
 
-#### `__constructor(token: Address)`
+#### `__constructor(token: Address, admin: Address)`
 
-Binds the payment token forever. Calls `token.decimals()` once, so deploying
-against an address that is not a token contract fails.
+Binds the payment token forever and records the admin. Calls `token.decimals()`
+once, so deploying against an address that is not a token contract fails.
+
+#### `upgrade(new_wasm_hash: BytesN<32>)`
+
+| | |
+|---|---|
+| Auth | the `admin` |
+| Requires | the Wasm is already uploaded to the network (host error otherwise) |
+| Effect | Replaces the kernel's code once the call returns. Address, storage, jobs and escrow are unchanged. |
+| Event | `Upgraded` |
 
 #### `create_job(client, provider: Option<Address>, evaluator, expires_at: u64, spec_hash: BytesN<32>) -> u64`
 
@@ -149,15 +160,17 @@ and the transaction landing.
 | Function | Auth | Returns / effect |
 |---|---|---|
 | `get_job(id) -> Job` | none | the job, or `NotFound` |
+| `get_jobs(start: u64, limit: u32) -> Vec<Job>` | none | up to `min(limit, MAX_PAGE = 50)` jobs with IDs from `start` upward (0 reads as 1); empty past the last job. Per-address lists come from events. |
 | `job_count() -> u64` | none | number of jobs ever created |
 | `token() -> Address` | none | the payment token |
+| `admin() -> Address` | none | the key that may `upgrade` |
 | `extend_ttl(id)` | none | extends the job's and the instance's TTL to the network maximum; `NotFound` if absent |
 
 ### Storage and TTL
 
 | Data | Storage | TTL |
 |---|---|---|
-| token, job counter | instance | extended to max on every write |
+| token, admin, job counter | instance | extended to max on every write |
 | `Job(id)` | persistent | extended to max on every write and by `extend_ttl` |
 
 With the network maximum at about 180 days and jobs capped at 90, a live job's
@@ -193,7 +206,8 @@ Failed `require_auth` is a host error, not one of these codes.
 
 ### Events
 
-Each event's first topic is its name. Every event carries the job `id` as a topic.
+Each event's first topic is its name. Every job event carries the job `id` as its
+second topic; `upgraded` concerns the whole contract and carries the admin instead.
 Data is a map keyed by field name. Events with an optional field (`job_created`,
 `job_rejected`) always include every key, with void for `None`. Payload fields are
 append-only; removing or retyping one requires a new kernel version.
@@ -214,6 +228,7 @@ this document's function list without a compile error.
 | `job_expired` | id | none |
 | `payment_released` | id, provider | amount |
 | `refunded` | id, client | amount |
+| `upgraded` | admin | wasm_hash |
 
 ## Evaluation policy
 
@@ -231,6 +246,7 @@ A contract used as a job's `evaluator`. Rationale and trust model:
 | `accept_owner()` | pending owner | a pending owner exists, otherwise `NoPendingOwner` | `owner_changed` |
 | `complete(signer, id, reason)` | `signer` | is a signer · not the job's client or provider, otherwise `SignerConflict` | Calls kernel `complete(id, reason)` as evaluator; `settled` |
 | `reject(signer, id, reason?)` | `signer` | same as `complete` | Calls kernel `reject(id, reason)` as evaluator; `settled` |
+| `upgrade(new_wasm_hash)` | owner | Wasm already uploaded | Replaces the policy's code, keeping its address, owner, signers and kernel; `upgraded` |
 | `is_signer(address) -> bool` · `owner() -> Address` · `kernel() -> Address` | none | | views |
 
 `complete` and `reject` check the signer first, then call the kernel, which
@@ -256,6 +272,7 @@ Policy codes start at 101 so they can never be confused with kernel codes.
 | `owner_proposed` | owner, pending | none |
 | `owner_changed` | old_owner, new_owner | none |
 | `settled` | id, signer | completed (bool), reason |
+| `upgraded` | owner | wasm_hash |
 
 ### Storage
 

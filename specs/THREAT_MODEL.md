@@ -19,7 +19,7 @@
 | Provider | propose budget, submit | be paid without the evaluator; evaluate its own work |
 | Evaluator | complete or reject a live, funded job | send funds anywhere except the job's provider or client |
 | Anyone | claim an expired refund (always to the client), extend TTL, read | anything else |
-| Pactlane (deployer) | choose the token at deploy time | anything after deployment: no admin key exists |
+| Pactlane (deployer) | choose the token and the admin at deploy time | anything after deployment except through the admin key (T17) |
 
 **Core property:** tokens leave the kernel only to the funded job's
 `provider` (on `complete`) or `client` (on `reject` or `claim_refund`), exactly
@@ -63,7 +63,7 @@ These are not mitigated by the kernel and must be stated to users.
 | T14 | Authorization replayed on another network | Soroban signatures commit to the network passphrase, and kernel IDs differ per network | documented; commit 30 checks the manifest |
 | T15 | Arithmetic overflow | `i128` budgets; release profile keeps `overflow-checks = true`; job counter fails with `IdOverflow` | commits 7, B2 |
 | T16 | Resource exhaustion through many jobs | Every function is O(1); each job is its own entry paid for by its creator; no iteration over jobs | commit 25 (resource snapshots) |
-| T17 | Privileged key upgrades the kernel or drains it | No admin, upgrade or pause function exists | commit 15 (interface has no such function) |
+| T17 | Privileged key upgrades the kernel or drains it | **Accepted for testnet.** One admin key (the policy's owner for the policy) may `upgrade` the code, which could replace the escrow rules. No pause or other privileged function exists; every upgrade emits `upgraded`, and `verify-deployment.ts` flags code that differs from the manifest. Before mainnet the admin must be a multisig or timelock, or the upgrade path removed. | `tests/integration/upgrade.rs`; exported surface in `tests/integration/commerce.rs` |
 | T18 | Provider cannot receive tokens (no trustline, frozen) | `complete` fails atomically and the job stays Submitted; the client is refunded after expiry. The provider bears this risk. | B4 |
 | T19 | Tampered build deployed | Pinned toolchain, `Cargo.lock`, Wasm hash in the manifest, and `verify-deployment.ts` | commits 27–29 |
 | T20 | Provider works without being funded | Out of kernel scope. Providers must see `Funded` on chain before starting. | documented |

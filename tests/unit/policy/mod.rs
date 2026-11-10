@@ -1,3 +1,17 @@
+mod error_codes;
+mod events_on_failure;
 mod governance;
+mod idle_signer;
+mod instance_ttl;
+mod many_clients;
+mod many_signers;
+mod owner_signer;
+mod pending_owner_powerless;
+mod propose_self;
+mod propose_twice;
+mod readd_signer;
 mod rotation;
+mod settled_void_reason;
 mod settlement;
+mod signer_ttl;
+mod two_policies;
