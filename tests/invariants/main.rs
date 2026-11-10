@@ -4,6 +4,7 @@
 
 mod conservation;
 mod conservation_terminal;
+mod prop_expiry;
 mod prop_job_count;
 mod prop_provider;
 mod prop_work_hash;
