@@ -204,6 +204,14 @@ Codes are part of the ABI and never renumbered.
 
 Failed `require_auth` is a host error, not one of these codes.
 
+An error from the token contract passes through `fund`, `complete`, `reject` and
+`claim_refund` unchanged, and its codes overlap these. In particular, the
+Stellar Asset Contract's insufficient-balance error is `Contract(10)`, which a
+client decoding with this table reads as `ProviderAlreadySet`. Those four
+functions never return `ProviderAlreadySet` themselves, so code 10 from any of
+them means the token refused the transfer (for `fund`, usually that the client
+lacks the budget or a trustline).
+
 ### Events
 
 Each event's first topic is its name. Every job event carries the job `id` as its
