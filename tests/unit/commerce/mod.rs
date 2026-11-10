@@ -14,6 +14,7 @@ mod events_on_failure;
 mod events_rejected;
 mod expiry;
 mod extend_terminal;
+mod extend_twice;
 mod fund;
 mod fund_negative_expected;
 mod job_count;
