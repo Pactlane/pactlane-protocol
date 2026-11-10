@@ -158,6 +158,11 @@ Differences from ERC-8183 are in [ERC_8183_MAPPING](specs/ERC_8183_MAPPING.md).
 - **Reproducible artifacts.** The toolchain and SDK are pinned exactly, and every
   deployment records the Wasm hash and the commit it was built from.
 
+### Trying it on testnet
+
+[`docs/TESTNET_GUIDE.md`](docs/TESTNET_GUIDE.md): accounts, the USDC trustline,
+faucet USDC, and a first job from the command line.
+
 ### Specifications
 
 | Spec | Covers |
