@@ -16,6 +16,7 @@ mod job_count;
 mod job_ids;
 mod many_jobs;
 mod max_duration_lifecycle;
+mod one_second_job;
 mod provider_immutable;
 mod reject;
 mod set_budget;
