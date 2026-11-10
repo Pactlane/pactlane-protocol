@@ -1,8 +1,7 @@
-//! Error codes are part of the deployed ABI: clients match on the number.
-//! These read the tables in `specs/INTERFACES.md` and require every code
-//! there to equal the Rust value, so the code and the spec cannot drift.
+//! Kernel error codes are part of the deployed ABI: clients match on the
+//! number. This reads the table in `specs/INTERFACES.md` and requires every
+//! code there to equal the Rust value, so the code and the spec cannot drift.
 
-use pactlane_evaluation_policy::PolicyError;
 use pactlane_interfaces::Error;
 
 const SPEC: &str = include_str!("../../../specs/INTERFACES.md");
@@ -44,16 +43,6 @@ fn kernel_error(name: &str) -> Error {
     }
 }
 
-fn policy_error(name: &str) -> PolicyError {
-    match name {
-        "NotSigner" => PolicyError::NotSigner,
-        "AlreadySigner" => PolicyError::AlreadySigner,
-        "SignerConflict" => PolicyError::SignerConflict,
-        "NoPendingOwner" => PolicyError::NoPendingOwner,
-        other => panic!("spec lists an unknown policy error {other}"),
-    }
-}
-
 #[test]
 fn kernel_error_codes_match_the_spec_table() {
     let table = error_table("### Errors\n\nCodes are part of the ABI");
@@ -65,14 +54,4 @@ fn kernel_error_codes_match_the_spec_table() {
     assert_eq!(Error::NotFound as u32, 1);
     assert_eq!(Error::BudgetMismatch as u32, 8);
     assert_eq!(Error::IdOverflow as u32, 12);
-}
-
-#[test]
-fn policy_error_codes_match_the_spec_table() {
-    let table = error_table("Policy codes start at 101");
-    assert_eq!(table.len(), 4, "the spec lists four policy errors");
-    for (code, name) in &table {
-        assert_eq!(policy_error(name) as u32, *code, "{name}");
-    }
-    assert_eq!(PolicyError::NotSigner as u32, 101);
 }

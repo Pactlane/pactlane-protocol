@@ -1,3 +1,4 @@
+mod error_codes;
 mod governance;
 mod idle_signer;
 mod instance_ttl;
