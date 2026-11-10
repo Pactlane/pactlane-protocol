@@ -9,6 +9,7 @@ mod complete;
 mod constructor;
 mod create_job;
 mod create_roundtrip;
+mod duration_headroom;
 mod equal_hashes;
 mod error_codes;
 mod evaluator_balance;
