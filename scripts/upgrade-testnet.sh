@@ -10,8 +10,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-: "${STELLAR_ACCOUNT:?set STELLAR_ACCOUNT to the admin's Stellar CLI identity}"
-which="${1:-all}"
+: "${STELLAR_ACCOUNT:?set STELLAR_ACCOUNT to the Stellar CLI identity of the admin}"
+target="${1:-all}"
 network=testnet
 manifest=deployments/testnet.json
 
@@ -56,11 +56,11 @@ upgrade() {
   mv "$tmp" "$manifest"
 }
 
-case "$which" in kernel | policy | all) ;; *) echo "usage: $0 [kernel|policy|all]" >&2; exit 2 ;; esac
-if [ "$which" != policy ]; then
+case "$target" in kernel | policy | all) ;; *) echo "usage: $0 [kernel|policy|all]" >&2; exit 2 ;; esac
+if [ "$target" != policy ]; then
   upgrade pactlane-commerce target/wasm32v1-none/release/pactlane_commerce.wasm
 fi
-if [ "$which" != kernel ]; then
+if [ "$target" != kernel ]; then
   upgrade pactlane-evaluation-policy target/wasm32v1-none/release/pactlane_evaluation_policy.wasm
 fi
 echo "Recorded in $manifest. Check with: node scripts/verify-deployment.ts"
