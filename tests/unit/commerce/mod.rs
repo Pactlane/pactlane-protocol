@@ -23,6 +23,7 @@ mod late_refund;
 mod many_jobs;
 mod max_duration_lifecycle;
 mod one_second_job;
+mod other_asset;
 mod provider_immutable;
 mod reject;
 mod set_budget;
