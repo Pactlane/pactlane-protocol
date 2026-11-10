@@ -4,6 +4,7 @@ mod claim_refund;
 mod complete;
 mod constructor;
 mod create_job;
+mod events_created;
 mod expiry;
 mod fund;
 mod reject;
