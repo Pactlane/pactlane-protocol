@@ -3,5 +3,34 @@
   "schemaVersion": 1,
   "network": "testnet",
   "networkPassphrase": "Test SDF Network ; September 2015",
-  "contracts": {}
+  "contracts": {
+    "pactlane-commerce": {
+      "contractId": "CB3DJM7B7THZYCYINV22NATMRV3AFG4XX7235KYP2VVGOTRG2CGVKIQS",
+      "wasmSha256": "fa5f3356d5e26db85bb34dbbc51a5eb00a1003572208c922f831388dd9eb339e",
+      "gitCommit": "5d71d370546b0609a1fc10bcfabe4f329418e62e",
+      "deployedAt": "2026-11-10T22:16:48Z",
+      "constructorArgs": {
+        "token": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "admin": "GAAK4HAXR2R63O3O6MCNBFTQF7O5VGHKFLGTC7ZFGV3BV7UMCPHBUVHM"
+      },
+      "builtWith": {
+        "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "stellarCli": "stellar 26.0.0 (60f7458e7ecffddf2f2d91dc6d0d2db4fab03ecc)"
+      }
+    },
+    "pactlane-evaluation-policy": {
+      "contractId": "CCSAB45Q3NU6M7YLW4WVWC4MPQZZNLWYYBP2SAPSJ7NFBO4YTVDR43D7",
+      "wasmSha256": "956b15980a05fd4f276073a47a2b851ebbbb0ae4a19500d38fd91a659895f13f",
+      "gitCommit": "5d71d370546b0609a1fc10bcfabe4f329418e62e",
+      "deployedAt": "2026-11-10T22:16:48Z",
+      "constructorArgs": {
+        "owner": "GAAK4HAXR2R63O3O6MCNBFTQF7O5VGHKFLGTC7ZFGV3BV7UMCPHBUVHM",
+        "kernel": "CB3DJM7B7THZYCYINV22NATMRV3AFG4XX7235KYP2VVGOTRG2CGVKIQS"
+      },
+      "builtWith": {
+        "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
+        "stellarCli": "stellar 26.0.0 (60f7458e7ecffddf2f2d91dc6d0d2db4fab03ecc)"
+      }
+    }
+  }
 }
