@@ -1,4 +1,5 @@
 mod governance;
+mod idle_signer;
 mod many_clients;
 mod many_signers;
 mod owner_signer;
