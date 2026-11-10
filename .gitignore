@@ -15,3 +15,7 @@ node_modules/
 # Local working plan, not published.
 /impl_plan.md
 /issues_draft.md
+
+# Written by the Soroban test host on every run and never compared against,
+# so they only add churn to diffs.
+tests/test_snapshots/
