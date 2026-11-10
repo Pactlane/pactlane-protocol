@@ -1,8 +1,9 @@
 //! Pactlane's ERC-8183 escrow kernel.
 //!
 //! `specs/INTERFACES.md` is the source of truth; this crate implements it.
-//! There is deliberately no admin, upgrade, pause or hook: once deployed, the
-//! rules below are the only way escrowed funds move.
+//! There is no pause or hook. One admin key may replace the kernel's code
+//! with `upgrade`, keeping its address, storage and escrow; that key is the
+//! kernel's single trust assumption beyond these rules (threat T17).
 //!
 //! Every function that moves tokens writes the job's new state first and
 //! transfers second. Soroban also forbids a contract from being re-entered.
@@ -14,22 +15,46 @@ pub use storage::DataKey;
 
 use pactlane_interfaces::{
     BudgetSet, Commerce, Error, Job, JobCompleted, JobCreated, JobExpired, JobFunded, JobRejected,
-    JobState, JobSubmitted, PaymentReleased, ProviderSet, Refunded, MAX_JOB_DURATION,
+    JobState, JobSubmitted, PaymentReleased, ProviderSet, Refunded, Upgraded, MAX_JOB_DURATION,
 };
-use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env};
+use soroban_sdk::{contract, contractimpl, token, Address, BytesN, ContractExecutable, Env};
 
 #[contract]
 pub struct CommerceKernel;
 
 #[contractimpl]
 impl CommerceKernel {
-    /// Binds the payment token for the life of this deployment.
+    /// Binds the payment token for the life of this deployment and sets the
+    /// admin that may upgrade the code.
     ///
     /// Calls `decimals()` once so that deploying against an address that is
     /// not a token contract fails at deploy time, not at the first `fund`.
-    pub fn __constructor(env: Env, token: Address) {
+    pub fn __constructor(env: Env, token: Address, admin: Address) {
         token::TokenClient::new(&env, &token).decimals();
         storage::set_token(&env, &token);
+        storage::set_admin(&env, &admin);
+    }
+
+    /// Replaces the kernel's code with the uploaded Wasm `new_wasm_hash`.
+    ///
+    /// The address, every job and the escrowed balance stay as they are; the
+    /// new code takes effect once this call returns. Only the admin may call
+    /// it.
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) {
+        let admin = storage::admin(&env);
+        admin.require_auth();
+        Upgraded {
+            admin,
+            wasm_hash: new_wasm_hash.clone(),
+        }
+        .publish(&env);
+        env.deployer()
+            .update_current_contract(ContractExecutable::Wasm(new_wasm_hash));
+    }
+
+    /// The key that may upgrade this kernel.
+    pub fn admin(env: Env) -> Address {
+        storage::admin(&env)
     }
 }
 

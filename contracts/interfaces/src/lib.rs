@@ -217,6 +217,17 @@ pub struct PaymentReleased {
     pub amount: i128,
 }
 
+/// The contract's code was replaced. Emitted by the kernel and the
+/// evaluation policy just before the new Wasm takes effect; `admin` is the
+/// key that authorized it.
+#[contractevent(topics = ["upgraded"])]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Upgraded {
+    #[topic]
+    pub admin: Address,
+    pub wasm_hash: BytesN<32>,
+}
+
 #[contractevent(topics = ["refunded"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Refunded {

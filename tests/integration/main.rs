@@ -1,6 +1,7 @@
 mod archival;
 mod commerce;
 mod lifecycle;
+mod upgrade;
 
 use std::path::PathBuf;
 

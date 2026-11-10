@@ -22,5 +22,6 @@ fn deploying_against_an_address_that_is_not_a_token_fails() {
     // T11: a kernel bound to a non-token would accept jobs it can never fund.
     let s = Setup::new();
     let not_a_token = Address::generate(&s.env);
-    s.env.register(CommerceKernel, (not_a_token,));
+    s.env
+        .register(CommerceKernel, (not_a_token, s.admin.clone()));
 }

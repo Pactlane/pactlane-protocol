@@ -20,9 +20,12 @@
           "properties": {
             "constructorArgs": {
               "type": "object",
-              "required": ["token"],
+              "required": ["token", "admin"],
               "additionalProperties": false,
-              "properties": { "token": { "$ref": "#/$defs/contractId" } }
+              "properties": {
+                "token": { "$ref": "#/$defs/contractId" },
+                "admin": { "$ref": "#/$defs/address" }
+              }
             }
           }
         },
@@ -54,6 +57,7 @@
         "wasmSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "gitCommit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
         "deployedAt": { "type": "string", "format": "date-time" },
+        "upgradedAt": { "type": "string", "format": "date-time", "description": "Set by scripts/upgrade-testnet.sh when the code was last replaced in place." },
         "constructorArgs": { "type": "object" },
         "builtWith": {
           "type": "object",

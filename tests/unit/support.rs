@@ -18,12 +18,13 @@ fn only_the_client_starts_with_funds() {
     assert_eq!(s.balance(&s.provider), 0);
     assert_eq!(s.balance(&s.evaluator), 0);
     assert_eq!(s.balance(&s.stranger), 0);
+    assert_eq!(s.balance(&s.admin), 0);
 }
 
 #[test]
-fn the_four_actors_are_distinct() {
+fn the_five_actors_are_distinct() {
     let s = Setup::new();
-    let actors = [&s.client, &s.provider, &s.evaluator, &s.stranger];
+    let actors = [&s.client, &s.provider, &s.evaluator, &s.stranger, &s.admin];
     for (i, a) in actors.iter().enumerate() {
         for b in &actors[i + 1..] {
             assert_ne!(a, b);

@@ -7,7 +7,9 @@
 #   STELLAR_ACCOUNT    a Stellar CLI identity that pays for deployment. Create
 #                      and fund one with:
 #                        stellar keys generate pactlane-deployer --network testnet --fund
-#   POLICY_OWNER       who manages the policy's signers (default: the deployer)
+#   POLICY_OWNER       who manages the policy's signers and may upgrade it
+#                      (default: the deployer)
+#   KERNEL_ADMIN       who may upgrade the kernel (default: the deployer)
 #   TOKEN_CONTRACT_ID  the kernel's payment token (default: Circle's testnet
 #                      USDC, as a Stellar Asset Contract)
 set -euo pipefail
@@ -22,6 +24,7 @@ manifest=deployments/testnet.json
 usdc_asset="USDC:GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
 token="${TOKEN_CONTRACT_ID:-$(stellar contract id asset --asset "$usdc_asset" --network "$network")}"
 owner="${POLICY_OWNER:-$(stellar keys address "$STELLAR_ACCOUNT")}"
+admin="${KERNEL_ADMIN:-$(stellar keys address "$STELLAR_ACCOUNT")}"
 
 if ! git diff --quiet HEAD -- contracts Cargo.toml Cargo.lock rust-toolchain.toml; then
   # The manifest records the git commit; a dirty tree would make it a lie.
@@ -41,8 +44,8 @@ deploy() {
 }
 
 # The kernel's constructor probes the token, so a wrong token fails here.
-kernel_id="$(deploy "$kernel_wasm" --token "$token")"
-echo "Deployed pactlane-commerce: $kernel_id (token $token)"
+kernel_id="$(deploy "$kernel_wasm" --token "$token" --admin "$admin")"
+echo "Deployed pactlane-commerce: $kernel_id (token $token, admin $admin)"
 
 # The policy's constructor probes the kernel, so a wrong kernel fails here.
 policy_id="$(deploy "$policy_wasm" --owner "$owner" --kernel "$kernel_id")"
@@ -67,8 +70,9 @@ record() {
   mv "$tmp" "$manifest"
 }
 
-record pactlane-commerce "$kernel_id" "$kernel_wasm" "$(jq -n --arg t "$token" '{token: $t}')"
+record pactlane-commerce "$kernel_id" "$kernel_wasm" "$(jq -n --arg t "$token" --arg a "$admin" '{token: $t, admin: $a}')"
 record pactlane-evaluation-policy "$policy_id" "$policy_wasm" \
   "$(jq -n --arg o "$owner" --arg k "$kernel_id" '{owner: $o, kernel: $k}')"
-echo "Recorded in $manifest. Next: add signers with"
+echo "Recorded in $manifest. Later code changes: scripts/upgrade-testnet.sh (same IDs)."
+echo "Next: add signers with"
 echo "  stellar contract invoke --id $policy_id --source-account <owner> --network $network -- add_signer --signer <address>"
