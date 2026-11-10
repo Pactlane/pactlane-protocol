@@ -4,6 +4,7 @@ mod budget_extremes;
 mod budget_negotiation;
 mod cancel_with_budget;
 mod claim_refund;
+mod client_revoked;
 mod complete;
 mod constructor;
 mod create_job;
