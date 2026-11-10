@@ -158,6 +158,22 @@ Differences from ERC-8183 are in [ERC_8183_MAPPING](specs/ERC_8183_MAPPING.md).
 - **Reproducible artifacts.** The toolchain and SDK are pinned exactly, and every
   deployment records the Wasm hash and the commit it was built from.
 
+### Deployed contracts
+
+Stellar **testnet** only; nothing is deployed to mainnet. Both contracts are
+upgraded in place, so these IDs do not change. The source of truth, with Wasm
+hashes and source commits, is [`deployments/testnet.json`](deployments/testnet.json).
+
+| Contract | Address |
+|---|---|
+| Commerce kernel (`pactlane-commerce`) | [`CB3DJM7B7THZYCYINV22NATMRV3AFG4XX7235KYP2VVGOTRG2CGVKIQS`](https://stellar.expert/explorer/testnet/contract/CB3DJM7B7THZYCYINV22NATMRV3AFG4XX7235KYP2VVGOTRG2CGVKIQS) |
+| Evaluation policy (`pactlane-evaluation-policy`) | [`CCSAB45Q3NU6M7YLW4WVWC4MPQZZNLWYYBP2SAPSJ7NFBO4YTVDR43D7`](https://stellar.expert/explorer/testnet/contract/CCSAB45Q3NU6M7YLW4WVWC4MPQZZNLWYYBP2SAPSJ7NFBO4YTVDR43D7) |
+| Payment token: Circle testnet USDC | [`CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`](https://stellar.expert/explorer/testnet/contract/CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA) |
+| Kernel admin and policy owner | [`GAAK4HAXR2R63O3O6MCNBFTQF7O5VGHKFLGTC7ZFGV3BV7UMCPHBUVHM`](https://stellar.expert/explorer/testnet/account/GAAK4HAXR2R63O3O6MCNBFTQF7O5VGHKFLGTC7ZFGV3BV7UMCPHBUVHM) |
+
+`node scripts/verify-deployment.ts` checks the chain against the manifest, and
+`scripts/e2e-testnet.sh` runs real jobs through every path with fresh wallets.
+
 ### Trying it on testnet
 
 [`docs/TESTNET_GUIDE.md`](docs/TESTNET_GUIDE.md): accounts, the USDC trustline,
