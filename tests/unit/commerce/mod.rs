@@ -15,6 +15,7 @@ mod fund_negative_expected;
 mod job_count;
 mod job_ids;
 mod many_jobs;
+mod max_duration_lifecycle;
 mod provider_immutable;
 mod reject;
 mod set_budget;
