@@ -33,6 +33,7 @@ mod provider_immutable;
 mod reject;
 mod set_budget;
 mod set_provider;
+mod state_discriminants;
 mod state_machine;
 mod stranger_balance;
 mod submit;
