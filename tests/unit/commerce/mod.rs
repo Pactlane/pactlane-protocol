@@ -10,6 +10,7 @@ mod constructor;
 mod create_job;
 mod create_roundtrip;
 mod equal_hashes;
+mod error_codes;
 mod evaluator_balance;
 mod event_topics;
 mod events_created;
